@@ -1,4 +1,4 @@
-import { EditorView, Decoration, WidgetType, type Command, type DecorationSet } from "@codemirror/view";
+import { EditorView, Decoration, ViewPlugin, WidgetType, type Command, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import {
   deleteCharBackward, deleteCharForward, insertNewlineAndIndent, insertTab,
   cursorCharLeft, cursorCharRight, cursorLineUp, cursorLineDown, cursorLineBoundaryBackward, cursorLineBoundaryForward,
@@ -428,6 +428,22 @@ export const flashField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
+/** Removes a flash `FLASH_MS` after it was shown (a newer one restarts the wait). */
+const flashTimer = ViewPlugin.fromClass(
+  class {
+    private timer: ReturnType<typeof setTimeout> | undefined;
+    constructor(private readonly view: EditorView) {}
+    update(u: ViewUpdate) {
+      if (!u.transactions.some((tr) => tr.effects.some((e) => e.is(setFlash) && e.value))) return;
+      clearTimeout(this.timer);
+      this.timer = setTimeout(() => this.view.dispatch({ effects: setFlash.of(null) }), FLASH_MS);
+    }
+    destroy() {
+      clearTimeout(this.timer);
+    }
+  },
+);
+
 /** The flash's look: an accent halo that pulses out from the cursor and a background on the lines that fades, both gone after `FLASH_MS`; with reduced motion both stay still until then. */
 export const flashTheme = EditorView.theme({
   ".cm-flash-cursor": {
@@ -465,3 +481,6 @@ export const flashTheme = EditorView.theme({
     ".cm-flash-line": { animation: "none", backgroundColor: "color-mix(in srgb, var(--color-accent) 20%, transparent)" },
   },
 });
+
+/** Everything the flash needs in an editor: its decorations, its removal and its look. */
+export const flashExtension = [flashField, flashTimer, flashTheme];

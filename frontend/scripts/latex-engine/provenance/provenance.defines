@@ -18,3 +18,4 @@
 @define procedure provmap();
 @define function provmapget();
 @define procedure provspecial();
+@define procedure provpage;

@@ -175,4 +175,38 @@ test.describe('click accuracy', () => {
     console.log(`[timing] viewer swaps (ms): ${swapMs.join(', ')}`);
     expect(wrong).toEqual([]);
   });
+
+  test('[editor] zoomed out by hand until the page fits, recompiles swap at once and show the page (no wait for a scroll that cannot happen, no blank viewer at a fixed zoom)', async ({ page }) => {
+    test.setTimeout(300_000);
+    const swapMs: number[] = [];
+    page.on('console', (m) => {
+      const ms = /^\[preview\] swap (\d+) ms/.exec(m.text());
+      if (ms) swapMs.push(Number(ms[1]));
+    });
+    await page.addInitScript(() => window.localStorage.setItem('bg_latex_compilation', 'local'));
+    await signInFirstTime(page);
+    await gotoExerciseLibrary(page);
+    await page.getByRole('button', { name: await t(page, 'exercises.page.createButton') }).click();
+    const editor = await exerciseEditor(page);
+    await setCodeMirror(page, editor, 'Eine kurze Aufgabe.', 0);
+    await editor.getByRole('button', { name: await t(page, 'exercises.editor.previewButton') }).click();
+    const sheet = editor.getByRole('img', { name: await t(page, 'common.pdfPage') }).first();
+    await expect(sheet).toBeVisible({ timeout: 240_000 });
+    // Zoomed out with Ctrl+wheel until the one page fits well inside the pane, so nothing can scroll.
+    const box = await sheet.boundingBox();
+    if (box) await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.keyboard.down('Control');
+    for (let i = 0; i < 8; i++) await page.mouse.wheel(0, 200);
+    await page.keyboard.up('Control');
+    await expect.poll(async () => ((await sheet.boundingBox())?.width ?? 999) < (box?.width ?? 0) / 2).toBe(true);
+    const n = swapMs.length;
+    await cm(page, 'view.dispatch({ changes: { from: view.state.doc.length, insert: " Noch ein Satz." } });');
+    await expect.poll(() => swapMs.length, { timeout: 20_000 }).toBeGreaterThan(n);
+    // The second edit loads into the viewer shown before (the reused spare), also at the kept fixed zoom.
+    await cm(page, 'view.dispatch({ changes: { from: view.state.doc.length, insert: " Und noch einer." } });');
+    await expect.poll(() => swapMs.length, { timeout: 20_000 }).toBeGreaterThan(n + 1);
+    expect(swapMs.slice(n, n + 2).every((ms) => ms < 2000)).toBe(true);
+    // A page shows (EmbedPDF draws nothing at a fixed zoom until it is asked for one).
+    await expect(sheet).toBeVisible();
+  });
 });

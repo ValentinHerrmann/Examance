@@ -131,17 +131,22 @@ export function whenEmbedPdfShown(
   timeoutMs = 5000,
   /** Page images of the document this viewer showed before: they do not count as the new one rendered. */
   stale: Set<string> = new Set(),
+  /** Called every few frames while the viewer shows no page of its own yet (`requestEmbedPdfZoom`: EmbedPDF draws nothing at a fixed zoom until a zoom request). */
+  kick?: () => void,
 ): Promise<boolean> {
   const deadline = performance.now() + timeoutMs;
   let scrolled = !scroll;
+  let frames = 0;
   return new Promise((resolve) => {
     const check = () => {
       if (cancelled()) return resolve(false);
       if (performance.now() > deadline) return resolve(true);
       const scroller = embedPdfScroller(target);
-      if (scroller && !scrolled && scroll && scroller.scrollHeight > scroller.clientHeight) {
-        scroller.scrollTop = scroll.top;
-        scroller.scrollLeft = scroll.left;
+      if (kick && frames++ % 10 === 0 && ![...(scroller?.querySelectorAll('img') ?? [])].some((img) => !stale.has(img.src))) kick();
+      // Once the pages are laid out the reader's place is restored; pages that fit without scrolling have no place to restore (they used to wait for the timeout).
+      if (scroller && !scrolled && scroll && scroller.scrollHeight > 0) {
+        if (scroller.scrollHeight > scroller.clientHeight) scroller.scrollTop = scroll.top;
+        if (scroller.scrollWidth > scroller.clientWidth) scroller.scrollLeft = scroll.left;
         scrolled = true;
       }
       if (scroller && scrolled && viewSharp(scroller, stale)) return resolve(true);
@@ -269,6 +274,12 @@ export async function embedPdfPageLocator(viewer: EmbedPdfContainer, target: Ele
       return p ? { left: p.left + x * p.scale, top: p.top + y * p.scale, scale: p.scale } : null;
     },
   };
+}
+
+/** Asks the viewer's active document for `level`. EmbedPDF holds a new document's pages back until a zoom request; it makes one by itself only for the fit and automatic modes, so a viewer opened at a fixed zoom (the reader zoomed by hand) stays blank without this. */
+export function requestEmbedPdfZoom(viewer: EmbedPdfContainer, level: ZoomLevel | undefined): void {
+  if (level === undefined) return;
+  void viewer.registry.then((registry) => capabilityOf<{ requestZoom(level: ZoomLevel): void }>(registry.getPlugin("zoom"))?.requestZoom(level)).catch(() => undefined);
 }
 
 interface DocumentManagerLike {

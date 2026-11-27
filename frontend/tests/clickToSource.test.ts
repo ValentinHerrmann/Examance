@@ -243,6 +243,9 @@ describe('resolveClick, caretFor and selectionFor with the engine\'s character p
   it('places the caret at a character, inside a ligature and after the text before a space or line end', () => {
     expect(caretFor(res, 'e1', 2, 17, () => SRC)!.x).toBeCloseTo(154, 1);
     expect(caretFor(res, 'e1', 3, 2, () => SRC)!.x).toBeCloseTo(198, 1);
+    // The first character of a word and of a printed line: before it, not after the word before (regression: the exact match looked one entry too early).
+    expect(caretFor(res, 'e1', 2, 4, () => SRC)!.x).toBeCloseTo(90, 1);
+    expect(caretFor(res, 'e1', 3, 4, () => SRC)!.x).toBeCloseTo(72, 1);
     // The space after "Die" and the end of line 2.
     expect(caretFor(res, 'e1', 2, 3, () => SRC)!.x).toBeCloseTo(84, 1);
     expect(caretFor(res, 'e1', 2, 24, () => SRC)!.x).toBeCloseTo(184, 1);
@@ -269,6 +272,11 @@ describe('textMap', () => {
     expect(toCompiled(compiled, current, { line: 1, column: 12 })).toEqual({ line: 1, column: 5 });
     // Inside the typed text: where it starts in the compiled text.
     expect(toCompiled(compiled, current, { line: 1, column: 7 })).toEqual({ line: 1, column: 4 });
+  });
+
+  it('puts a position inside replaced text where the replacement starts', () => {
+    // "Maus" replaced by "Katze": inside the new word the compiled position is the start of the old one.
+    expect(toCompiled('Die Maus', 'Die Katze', { line: 1, column: 7 })).toEqual({ line: 1, column: 4 });
   });
 
   it('keeps every position when nothing changed', () => {

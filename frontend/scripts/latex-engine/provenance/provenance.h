@@ -24,6 +24,7 @@ void provfromacc(int p);
 void provmap(int inLen, int outLen);
 int provmapget(int i);
 void provspecial(int from, int to);
+void provpage(void);
 void provClusters(void *pNode, void *engine, int count);
 void provGetClusters(void *engine, int32_t *out, int count);
 #ifdef __cplusplus

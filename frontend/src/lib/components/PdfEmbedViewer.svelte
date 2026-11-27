@@ -184,7 +184,7 @@
   }
 
   async function mount(url: string) {
-    const { patchEmbedPdfShadow, mountEmbedPdf, embedPdfScroller, whenEmbedPdfShown, replaceEmbedPdfDocument, embedPdfPageImages } = await import("#lib/pdf/embedpdf");
+    const { patchEmbedPdfShadow, mountEmbedPdf, embedPdfScroller, whenEmbedPdfShown, replaceEmbedPdfDocument, embedPdfPageImages, requestEmbedPdfZoom } = await import("#lib/pdf/embedpdf");
     scrollerOf = embedPdfScroller;
     // A src change (or unmount racing a fast page switch) may land here after containerEl is gone or after a newer `mount()` already ran.
     if (!containerEl || src !== url) return;
@@ -210,7 +210,8 @@
       const job = replaceEmbedPdfDocument(reuse.viewer, url, keptZoom).catch(() => false);
       reuse.loading = job;
       const loaded = await job;
-      const ok = loaded && (await whenEmbedPdfShown(reuse.el, scroll, superseded, 5000, stale));
+      const viewerNow = reuse.viewer;
+      const ok = loaded && (await whenEmbedPdfShown(reuse.el, scroll, superseded, 5000, stale, () => requestEmbedPdfZoom(viewerNow, keptZoom)));
       if (superseded()) return;
       if (ok) {
         swapTo(reuse, previous, started, url);
@@ -235,7 +236,8 @@
     if (previous) {
       pending = layer;
       // A newer PDF may take this viewer over while it loads (`ticket`): then that load shows it, not this one.
-      const ok = await whenEmbedPdfShown(el, scroll, () => pending !== layer || layer.ticket !== 1);
+      const fresh = layer.viewer;
+      const ok = await whenEmbedPdfShown(el, scroll, () => pending !== layer || layer.ticket !== 1, 5000, new Set(), fresh ? () => requestEmbedPdfZoom(fresh, keptZoom) : undefined);
       if (!ok || pending !== layer || layer.ticket !== 1) return;
       swapTo(layer, previous, started, url);
       return;

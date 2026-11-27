@@ -67,10 +67,8 @@
     applyDiffDecorations,
     EDITOR_KEY_COMMANDS,
     unfocusedCursorTheme,
-    flashField,
-    flashTheme,
-    setFlash,
-    FLASH_MS
+    flashExtension,
+    setFlash
   } from "./LatexEditor";
   import {
     GENERAL_CATEGORIES,
@@ -316,8 +314,6 @@
     setSelection({ line: lineNo, column }, { line: lineNo, column }, { focus });
   }
 
-  let flashTimer: ReturnType<typeof setTimeout> | undefined;
-
   /** Selects from `anchor` to `head` and scrolls the head into view; the pages keep the focus unless `focus`, and `flash` shows where the cursor went (a click in the PDF; inline editing, issue #347). */
   export function setSelection(anchor: EditorPos, head: EditorPos, opts: { focus?: boolean; flash?: boolean } = {}) {
     if (!view) return;
@@ -326,10 +322,6 @@
     const effects: StateEffect<unknown>[] = [EditorView.scrollIntoView(h, { y: "nearest" })];
     if (opts.flash) effects.push(setFlash.of({ from: Math.min(a, h), to: Math.max(a, h), head: h }));
     view.dispatch({ selection: { anchor: a, head: h }, effects });
-    if (opts.flash) {
-      clearTimeout(flashTimer);
-      flashTimer = setTimeout(() => view?.dispatch({ effects: setFlash.of(null) }), FLASH_MS);
-    }
     if (opts.focus) view.focus();
   }
 
@@ -388,8 +380,7 @@
         history(),
         drawSelection(),
         showUnfocusedCursor ? unfocusedCursorTheme : [],
-        flashField,
-        flashTheme,
+        flashExtension,
         search({ top: true }),
         highlightSelectionMatches(),
         keymap.of([
@@ -459,7 +450,6 @@
 
   onDestroy(() => {
     if (hoverTimer) clearTimeout(hoverTimer);
-    clearTimeout(flashTimer);
     if (view) {
       if (handleScrollListener && view.scrollDOM) {
         view.scrollDOM.removeEventListener("scroll", handleScrollListener);

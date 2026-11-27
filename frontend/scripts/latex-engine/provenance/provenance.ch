@@ -90,6 +90,15 @@ get_avail:=p;
 @z
 
 @x
+page_loc:=dvi_offset+dvi_ptr;
+dvi_out(bop);
+@y
+page_loc:=dvi_offset+dvi_ptr;
+prov_page;
+dvi_out(bop);
+@z
+
+@x
   native_glyph_count(q):=0;
   native_glyph_info_ptr(q):=null_ptr;
 

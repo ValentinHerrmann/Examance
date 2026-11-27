@@ -55,5 +55,5 @@ export function toCompiled(compiled: string, current: string, pos: TextPos): Tex
   if (!change) return pos;
   const offset = offsetOf(current, pos);
   if (offset < change.from) return pos;
-  return posOf(compiled, offset >= change.newTo ? offset - change.newTo + change.oldTo : change.oldTo);
+  return posOf(compiled, offset >= change.newTo ? offset - change.newTo + change.oldTo : change.from);
 }

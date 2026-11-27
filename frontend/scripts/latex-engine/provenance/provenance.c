@@ -159,8 +159,11 @@ static void provnodeput(int p, int i, int v)
 void provnodecopy(int dst, int src)
 {
     ProvNode *s = provfind(src);
-    if (!s)
+    if (!s) {
+        /* The copy must not keep an entry of a freed node that used its address before. */
+        provnodefree(dst);
         return;
+    }
     int n = s->n;
     int32_t *pos = (int32_t *) xmalloc((size_t) (n > 0 ? n : 1) * sizeof(int32_t));
     memcpy(pos, s->pos, (size_t) n * sizeof(int32_t));
@@ -298,6 +301,12 @@ void provspecial(int from, int to)
         provtransformed++;
     else if ((provhasprefix(from, to, "pdf: econtent") || provhasprefix(from, to, "pdf: etrans")) && provtransformed > 0)
         provtransformed--;
+}
+
+/* A new page starts: content transformed on an earlier page (an unclosed bcontent) does not reach it. */
+void provpage(void)
+{
+    provtransformed = 0;
 }
 
 /* One line of main.prov per native word shipped out: page, h, v, width, font size (sp), glyph count and each glyph's x offset (sp, as written to the XDV); then "|", the character count and each character's origin (packed line*4096+column, 0 for none); then "|" and each glyph's cluster (first character index), when shaping kept them; then "|" and each character (UTF-16 code unit), so a reader can check an origin against the source; then "|" and 1 when the word is inside transformed content (its position is not where it shows), else 0. */

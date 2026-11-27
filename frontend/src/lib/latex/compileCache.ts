@@ -36,6 +36,8 @@ export interface CachedCompileEntry {
   synctexLineShift?: number;
   synctexColumns?: boolean;
   provenance?: Uint8Array;
+  /** Read back from the sealed store after a reload, so it never has SyncTeX (`compileWithCache` accepts it anyway). */
+  stored?: boolean;
 }
 
 /** Maximum total PDF bytes kept in cache (150 MB). */
@@ -238,7 +240,9 @@ async function fromStore(key: CompileCacheKey): Promise<CachedCompileEntry | und
   const stored = await loadStoredCompile(makeSlotKey(key));
   if (!stored) return undefined;
   setCached(key, stored.hash, { ...stored, fromCache: true });
-  return cache.get(makeSlotKey(key));
+  const entry = cache.get(makeSlotKey(key));
+  if (entry) entry.stored = true;
+  return entry;
 }
 
 /** The slot's entry from memory or, after a reload, from the store; any hash. */
@@ -354,7 +358,8 @@ export async function compileWithCache(
   const hash = await hashFor(latexSource, useLocal, opts);
   // The store is read only when memory knows nothing of the slot (after a reload): a memory miss with another hash is current there too.
   const hit = getCached(key, hash) ?? (!cache.has(makeSlotKey(key)) && (await fromStore(key))?.hash === hash ? getCached(key, hash) : undefined);
-  if (hit) return hitResult(hit, latexSource);
+  // A caller that wants SyncTeX does not take a compile of this session that ran without it (the OMR template shares the exam's slot); after a reload the stored PDF still wins, and clicks follow with the next compile.
+  if (hit && (!opts.synctex || hit.synctex || hit.stored)) return hitResult(hit, latexSource);
 
   const startedAt = invalidationSeq;
   const result = await compileLatex(latexSource, useLocal, onStatus, { ...opts, seedAux: await seedFor(key), session: sessionOf(key) });

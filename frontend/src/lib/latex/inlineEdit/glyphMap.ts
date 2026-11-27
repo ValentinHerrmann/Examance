@@ -248,7 +248,7 @@ export function caretAt(map: GlyphMap, pos: TexPos, accept: (line: number) => bo
     if (before(pos, entries[mid].pos)) hi = mid;
     else lo = mid + 1;
   }
-  const at = lo > 0 && same(entries[lo - 1].pos, pos) ? lo - 1 : -1;
+  const at = lo < entries.length && same(entries[lo].pos, pos) ? lo : -1;
   if (at >= 0) return box(entries[at].word, charX(entries[at].word, entries[at].index));
   const prev = entries[lo - 1];
   return prev && accept(prev.pos.line) ? box(prev.word, charX(prev.word, prev.index + 1)) : null;

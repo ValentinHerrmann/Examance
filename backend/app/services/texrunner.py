@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import gzip
 import hashlib
 import logging
 import os
 import shutil
 import tempfile
 import time
+import zlib
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -348,11 +350,38 @@ async def _run_passes_or_unseeded(tmpdir: Path, tex_args: list[str], seeded: boo
     return await _run_passes(tmpdir, tex_args, False, deadline)
 
 
+def _public_input_path(path: str, tmpdir: Path) -> str:
+    """A SyncTeX input path without the server's layout: work-dir files relative to it, TeX Live files from `texmf-dist/`, anything else by its name."""
+    for root in (str(tmpdir), str(tmpdir.resolve())):
+        if path.startswith(root + "/"):
+            return "./" + os.path.normpath(path[len(root) + 1:])
+    marker = path.find("texmf-dist/")
+    return path[marker:] if marker >= 0 else Path(path).name
+
+
+def _strip_server_paths(synctex: str, tmpdir: Path) -> str:
+    """The SyncTeX text with every `Input:<tag>:<path>` line's path made public (`_public_input_path`); the client resolves only main.tex."""
+    lines = synctex.split("\n")
+    for i, line in enumerate(lines):
+        if not line.startswith("Input:"):
+            continue
+        head, sep, path = line.partition(":")[2].partition(":")
+        if sep:
+            lines[i] = f"Input:{head}:{_public_input_path(path, tmpdir)}"
+    return "\n".join(lines)
+
+
 def _read_synctex(tmpdir: Path) -> bytes | None:
+    """The gzipped SyncTeX of the run, with server paths removed; None when missing or over MAX_SYNCTEX_BYTES (compressed or ten times that unpacked)."""
     path = tmpdir / "main.synctex.gz"
     if not path.is_file() or path.stat().st_size > MAX_SYNCTEX_BYTES:
         return None
-    return path.read_bytes()
+    unpacker = zlib.decompressobj(wbits=31)
+    raw = unpacker.decompress(path.read_bytes(), 10 * MAX_SYNCTEX_BYTES)
+    if unpacker.unconsumed_tail:
+        return None
+    text = _strip_server_paths(raw.decode("utf-8", errors="replace"), tmpdir)
+    return gzip.compress(text.encode("utf-8"), mtime=0)
 
 
 async def run_tex(
