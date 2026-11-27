@@ -128,20 +128,6 @@ function nearestPoint(data: SyncData, recs: SyncRecord[], x: number, y: number):
   return best && file ? { file, line: best.line, box: best } : null;
 }
 
-/** Column of `word` in `sourceLine` (0-based), or -1: XeTeX's SyncTeX carries no columns, so the clicked word decides. */
-export function columnOf(sourceLine: string, word: string): number {
-  const w = word.trim();
-  if (!w) return -1;
-  const at = sourceLine.indexOf(w);
-  if (at >= 0) return at;
-  // Words split by hyphenation or ligatures: try the longest prefix that still matches.
-  for (let n = w.length - 1; n >= 3; n--) {
-    const i = sourceLine.indexOf(w.slice(0, n));
-    if (i >= 0) return i;
-  }
-  return -1;
-}
-
 /** Where `line` of the input ending in `file` was typeset: its first point record (page 1-based, PDF points), for the provisional overlay. */
 export function positionOf(data: SyncData, file: string, line: number): { page: number; x: number; y: number } | null {
   const tags = new Set([...data.inputs].filter(([, path]) => path.endsWith(file)).map(([tag]) => tag));

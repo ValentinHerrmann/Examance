@@ -1,7 +1,8 @@
-/** From a click on a compiled preview to the exercise's LaTeX, and from an edited line back to the page (issue #347). SyncTeX gives the line, pdf.js the clicked word, `columnOf` the column; `docs/dev/latex.md`. */
+/** From a click on a compiled preview to the exercise's LaTeX, and from an edited line back to the page (issue #347). SyncTeX gives the line, pdf.js the clicked word and its neighbours, the paragraph's printed view (`printedText.ts`) the column; `docs/dev/latex.md`. */
 import { loadPdfjs } from '#lib/pdf/pdfjs';
 import type { CompileResult } from './compiler';
-import { columnOf, parseSynctex, positionOf, sourceAt, type SyncData } from './engine/synctex';
+import { parseSynctex, positionOf, sourceAt, type SyncData } from './engine/synctex';
+import { normalizePrinted, printedView, wordSpan, wordsOf } from './printedText';
 import { mapLine, type SourceRange } from './sourceMap';
 
 /** A click on a page: 1-based page, PDF points from the page's top-left corner, plus the screen point for a tooltip. */
@@ -30,8 +31,17 @@ export type SyncedResult = Pick<CompileResult, 'pdfBytes' | 'synctex' | 'synctex
 
 /** Lines the SyncTeX reader resolves against: the document is always fed in as main.tex. */
 const MAIN_FILE = 'main.tex';
-/** Neighbouring lines tried when the clicked word is not on the line SyncTeX names (multi-line paragraphs, math, table cells). */
-const NEIGHBOUR_LINES = 2;
+/** How far the search for the clicked word reaches around SyncTeX's line: the paragraph, at most this many lines each way. */
+const PARAGRAPH_REACH = 40;
+/** Neighbouring words compared on each side to choose between occurrences of the same word. */
+const CONTEXT_WORDS = 3;
+
+/** The clicked word as printed, with up to `CONTEXT_WORDS` words before and after it on its printed line. */
+export interface WordProbe {
+  word: string;
+  before: string[];
+  after: string[];
+}
 
 const parsed = new WeakMap<Uint8Array, SyncData>();
 
@@ -57,24 +67,62 @@ function documentLine(result: SyncedResult, synctexLine: number): number {
   return synctexLine > shift ? synctexLine - shift : synctexLine;
 }
 
-/** Column of `word` on `line` of `lines` (1-based), else on the nearest neighbouring line of the same body. */
-export function locateWord(lines: string[], line: number, word: string | null): { line: number; column: number } {
-  if (!word) return { line, column: 0 };
-  for (let d = 0; d <= NEIGHBOUR_LINES; d++) {
-    for (const candidate of d === 0 ? [line] : [line - d, line + d]) {
-      if (candidate < 1 || candidate > lines.length) continue;
-      const column = columnOf(lines[candidate - 1], word);
-      if (column >= 0) return { line: candidate, column };
-    }
+/** The paragraph around `line` (1-based) of `lines`: from the blank line before to the blank line after, at most `PARAGRAPH_REACH` lines each way. */
+function paragraphOf(lines: string[], line: number): { first: number; last: number } {
+  const blank = (n: number) => !lines[n - 1]?.trim();
+  let first = line;
+  let last = line;
+  while (first > 1 && !blank(first - 1) && line - first < PARAGRAPH_REACH) first--;
+  while (last < lines.length && !blank(last + 1) && last - line < PARAGRAPH_REACH) last++;
+  return { first, last };
+}
+
+/** How many of the probe's neighbours match the printed words around occurrence `i`. */
+function contextScore(words: string[], i: number, probe: WordProbe): number {
+  let score = 0;
+  probe.before.forEach((w, k) => {
+    if (words[i - probe.before.length + k] === w) score++;
+  });
+  probe.after.forEach((w, k) => {
+    if (words[i + 1 + k] === w) score++;
+  });
+  return score;
+}
+
+/** Line and column of the clicked word in `lines`, searched in the paragraph around `line` (SyncTeX's line): occurrences are ranked by matching neighbours, then by nearness to that line; column 0 of `line` when the word is not there. */
+export function locateWord(lines: string[], line: number, probe: WordProbe | null): { line: number; column: number } {
+  if (!probe?.word || line < 1 || line > lines.length) return { line, column: 0 };
+  const { first, last } = paragraphOf(lines, line);
+  const view = printedView(lines.slice(first - 1, last), first);
+  const starts: number[] = [];
+  const words: string[] = [];
+  for (const m of view.text.matchAll(/[\p{L}\p{N}]+/gu)) {
+    starts.push(m.index);
+    words.push(m[0]);
   }
-  return { line, column: 0 };
+  // A word hyphenated at the end of a printed line shows only its first part.
+  const matches = (w: string) => w === probe.word || (probe.word.length >= 3 && w.startsWith(probe.word) && probe.after.length === 0);
+  let best = -1;
+  let bestScore = -Infinity;
+  words.forEach((w, i) => {
+    if (!matches(w)) return;
+    const [at] = view.at[starts[i]];
+    const score = contextScore(words, i, probe) * 10 - Math.abs(at - line) * 0.1 - (w === probe.word ? 0 : 5);
+    if (score > bestScore) {
+      bestScore = score;
+      best = i;
+    }
+  });
+  if (best < 0) return { line, column: 0 };
+  const [l, column] = view.at[starts[best]];
+  return { line: l, column };
 }
 
 /** Where the click lands in the source: an exercise line and column, the template, or null when SyncTeX knows nothing there. `bodyOf` returns the LaTeX body of a marked exercise (by id, or the only one when the builder gave none). */
 export function resolveClick(
   result: SyncedResult,
   click: Pick<PageClick, 'page' | 'x' | 'y'>,
-  word: string | null,
+  probe: WordProbe | null,
   bodyOf: (exerciseId: string | null) => string | undefined
 ): ClickTarget | null {
   const data = syncDataOf(result);
@@ -84,12 +132,35 @@ export function resolveClick(
   if (!hit) return null;
   // Package and template files (sty/…) are never the exercise.
   if (!hit.file.endsWith(MAIN_FILE)) return { kind: 'template' };
-  const loc = mapLine({ tex: '', ranges }, documentLine(result, hit.line));
-  if (!loc?.label) return { kind: 'template' };
-  const body = bodyOf(loc.exerciseId);
-  if (body === undefined) return { kind: 'template' };
-  const { line, column } = locateWord(body.split('\n'), loc.line, word);
-  return { kind: 'source', exerciseId: loc.exerciseId, label: loc.label, line, column };
+  const docLine = documentLine(result, hit.line);
+  const loc = mapLine({ tex: '', ranges }, docLine);
+  if (loc?.label) {
+    const body = bodyOf(loc.exerciseId);
+    if (body === undefined) return { kind: 'template' };
+    const { line, column } = locateWord(body.split('\n'), loc.line, probe);
+    return { kind: 'source', exerciseId: loc.exerciseId, label: loc.label, line, column };
+  }
+  return runInStart(ranges, docLine, probe, bodyOf) ?? { kind: 'template' };
+}
+
+/** Lines between a template line and the exercise body it shares a printed line with (a run-in title, `\begin{Aufgabe}{…}` before the body). */
+const RUN_IN_LINES = 3;
+
+/** A template hit whose printed line continues into an exercise body that starts just below it: the clicked word, when that body's first lines hold it. */
+function runInStart(
+  ranges: SourceRange[],
+  docLine: number,
+  probe: WordProbe | null,
+  bodyOf: (exerciseId: string | null) => string | undefined
+): ClickTarget | null {
+  const range = ranges.find((r) => r.start > docLine && r.start - docLine <= RUN_IN_LINES);
+  const body = range && bodyOf(range.exerciseId);
+  if (!range || body === undefined || !probe) return null;
+  const lines = body.split('\n');
+  const found = locateWord(lines, 1, probe);
+  // locateWord answers column 0 of the given line when the word is missing; accept that only when the word really starts there.
+  const startsThere = found.column > 0 || found.line > 1 || printedView([lines[0] ?? '']).text.trimStart().startsWith(probe.word);
+  return startsThere ? { kind: 'source', exerciseId: range.exerciseId, label: range.label, line: found.line, column: found.column } : null;
 }
 
 /** Where line `line` (1-based) of the marked body `range` was typeset, for the provisional overlay. */
@@ -149,33 +220,66 @@ interface TextItemLike {
   height: number;
 }
 
-/** The word under (x, y) in the page's text items, PDF points from the top-left; `pageHeight` turns pdf.js's bottom-left baseline into that frame. */
-export function wordInItems(items: TextItemLike[], pageHeight: number, x: number, y: number): string | null {
-  const baseline = pageHeight - y;
-  for (const item of items) {
-    if (!item.str.trim() || item.width <= 0) continue;
-    const left = item.transform[4];
-    const bottom = item.transform[5];
-    const height = item.height || Math.abs(item.transform[3]) || 10;
-    if (x < left || x > left + item.width || baseline < bottom - height * 0.3 || baseline > bottom + height) continue;
-    const at = Math.min(item.str.length - 1, Math.max(0, Math.floor(((x - left) / item.width) * item.str.length)));
-    return wordAround(item.str, at);
-  }
-  return null;
+/** Rough advance of a character relative to the average, so a click inside a long pdf.js item finds the right character in a proportional font. */
+function charWeight(c: string): number {
+  if (/[iljt.,:;'!|]/.test(c) || c === ' ') return 0.55;
+  if (/[-frI()]/.test(c)) return 0.7;
+  if (/[mwMW]/.test(c)) return 1.5;
+  if (/[A-ZÄÖÜ]/.test(c)) return 1.25;
+  return 1;
 }
 
-function wordAround(text: string, at: number): string | null {
-  const isWord = (c: string | undefined) => c !== undefined && /[\p{L}\p{N}]/u.test(c);
-  if (!isWord(text[at])) return null;
-  let from = at;
-  let to = at;
-  while (isWord(text[from - 1])) from--;
-  while (isWord(text[to + 1])) to++;
-  return text.slice(from, to + 1);
+/** The printed line under (x, y), PDF points from the top-left: its items on that baseline in reading order joined into one string, with each character's estimated centre x. `pageHeight` turns pdf.js's bottom-left baselines into that frame. */
+function lineAt(items: TextItemLike[], pageHeight: number, x: number, y: number): { text: string; xs: number[] } | null {
+  const baseline = pageHeight - y;
+  const hit = items.find((item) => {
+    if (!item.str.trim() || item.width <= 0) return false;
+    const height = item.height || Math.abs(item.transform[3]) || 10;
+    const bottom = item.transform[5];
+    return baseline >= bottom - height * 0.3 && baseline <= bottom + height && x >= item.transform[4] - 2 && x <= item.transform[4] + item.width + 2;
+  });
+  if (!hit) return null;
+  const tolerance = (hit.height || 10) * 0.3;
+  const row = items
+    .filter((item) => item.str && Math.abs(item.transform[5] - hit.transform[5]) <= tolerance)
+    .sort((a, b) => a.transform[4] - b.transform[4]);
+  let text = '';
+  const xs: number[] = [];
+  for (const item of row) {
+    const str = normalizePrinted(item.str);
+    if (text && !text.endsWith(' ') && !str.startsWith(' ')) {
+      text += ' ';
+      xs.push(item.transform[4]);
+    }
+    const total = [...str].reduce((sum, c) => sum + charWeight(c), 0) || 1;
+    let left = item.transform[4];
+    for (const c of str) {
+      const w = (charWeight(c) / total) * item.width;
+      text += c;
+      xs.push(left + w / 2);
+      left += w;
+    }
+  }
+  return { text, xs };
+}
+
+/** The word under (x, y) with its neighbours on the printed line, or null off the text; on a space or punctuation, the nearest word. */
+export function wordInItems(items: TextItemLike[], pageHeight: number, x: number, y: number): WordProbe | null {
+  const line = lineAt(items, pageHeight, x, y);
+  if (!line) return null;
+  let nearest = 0;
+  line.xs.forEach((cx, i) => {
+    if (Math.abs(cx - x) < Math.abs(line.xs[nearest] - x)) nearest = i;
+  });
+  const span = wordSpan(line.text, nearest);
+  if (!span) return null;
+  const before = wordsOf(line.text.slice(0, span.from)).slice(-CONTEXT_WORDS);
+  const after = wordsOf(line.text.slice(span.to)).slice(0, CONTEXT_WORDS);
+  return { word: line.text.slice(span.from, span.to), before, after };
 }
 
 /** The word under the click, or null (an image, a rule, empty space, a PDF pdf.js cannot read). */
-export async function wordAt(pdfBytes: Uint8Array, click: Pick<PageClick, 'page' | 'x' | 'y'>): Promise<string | null> {
+export async function wordAt(pdfBytes: Uint8Array, click: Pick<PageClick, 'page' | 'x' | 'y'>): Promise<WordProbe | null> {
   try {
     const page = await (await docOf(pdfBytes)).getPage(click.page);
     const [left, , , top] = page.view;

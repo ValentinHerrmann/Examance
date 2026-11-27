@@ -10,8 +10,8 @@ type PreviewInput = Omit<ExercisePreviewInput, 'onAngabe'>;
 /** The part of `LatexEditor` a jump needs. */
 export type CursorTarget = { setCursor(line: number, column?: number): void };
 
-/** The live preview waits this long after the last edit before it compiles. */
-const LIVE_DELAY_MS = 300;
+/** The live preview compiles at once on an edit (the queue keeps only the newest source waiting, so fast typing skips versions); devices with 4 GB or less, where the worker also keeps fewer sessions, wait a moment so a typing burst costs one compile (issue #347). */
+const LIVE_DELAY_MS = ((globalThis.navigator as { deviceMemory?: number } | undefined)?.deviceMemory ?? 8) <= 4 ? 300 : 0;
 
 /** The exercise editor's compile preview: the two PDFs as object URLs, which panes are open, and the last compile's failure (sent with a layout report). The editor owns one and calls `cleanup()` when it closes. */
 export class EditorPreview {
@@ -73,7 +73,7 @@ export class EditorPreview {
     return line;
   }
 
-  /** Live preview: `run` compiles `LIVE_DELAY_MS` after the last change of `key` while `on`; the key when it came on (the editor opened, the first compile ran) is the baseline, so only edits after it compile. */
+  /** Live preview: `run` compiles `LIVE_DELAY_MS` (usually 0) after the last change of `key` while `on`; the key when it came on (the editor opened, the first compile ran) is the baseline, so only edits after it compile. */
   live(key: string, on: boolean, run: () => void): void {
     const edited = this.liveKey !== '' && key !== this.liveKey;
     this.liveKey = on ? key : '';
