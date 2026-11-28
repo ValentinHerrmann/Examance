@@ -312,6 +312,17 @@ void provpage(void)
 /* One line of main.prov per native word shipped out: page, h, v, width, font size (sp), glyph count and each glyph's x offset (sp, as written to the XDV); then "|", the character count and each character's origin (packed line*4096+column, 0 for none); then "|" and each glyph's cluster (first character index), when shaping kept them; then "|" and each character (UTF-16 code unit), so a reader can check an origin against the source; then "|" and 1 when the word is inside transformed content (its position is not where it shows), else 0. */
 static FILE *provfile = NULL;
 
+static int provopen(void)
+{
+    if (provfile == NULL) {
+        provfile = fopen("main.prov", "w");
+        if (provfile == NULL)
+            return 0;
+        setvbuf(provfile, NULL, _IOLBF, 0);
+    }
+    return 1;
+}
+
 void provWord(void *pNode, int h, int v, int page, int size, int key)
 {
     memoryword *p = (memoryword *) pNode;
@@ -320,12 +331,8 @@ void provWord(void *pNode, int h, int v, int page, int size, int key)
     int len = native_length(p);
     ProvNode *e = provfind(key);
     int i;
-    if (provfile == NULL) {
-        provfile = fopen("main.prov", "w");
-        if (provfile == NULL)
-            return;
-        setvbuf(provfile, NULL, _IOLBF, 0);
-    }
+    if (!provopen())
+        return;
     fprintf(provfile, "w %d %d %d %d %d %d", page, h, v, (int) node_width(p), size, loc ? n : 0);
     for (i = 0; loc && i < n; i++)
         fprintf(provfile, " %d", (int) loc[i].x);
@@ -340,4 +347,125 @@ void provWord(void *pNode, int h, int v, int page, int size, int key)
     for (i = 0; i < len; i++)
         fprintf(provfile, " %d", (int) ((uint16_t *) (p + native_node_size))[i]);
     fprintf(provfile, " | %d\n", provtransformed > 0 ? 1 : 0);
+}
+
+/* Examance (issue #352): each shipped page reaches the host at once for drawn pages. The XDV file is flushed, then one write to main.pages carries the
+   page count and the bytes TeX still holds in dvi_buf (tex.web's dvi_swap: with dvi_limit=dvi_buf_size they are dvi_buf[0..dvi_ptr), else the second
+   half and then dvi_buf[0..dvi_ptr)), so the XDV written so far plus them ends at this page's eop. Only reads TeX's state: the XDV stays byte-identical. */
+static int provpagesfd = -1;
+
+void proveop(void)
+{
+    if (provpagesfd < 0) {
+        provpagesfd = open("main.pages", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (provpagesfd < 0)
+            return;
+    }
+    if (dvifile)
+        fflush(dvifile);
+    int tail = dvilimit == dvibufsize ? 0 : dvibufsize - halfbuf;
+    int len = tail + dviptr;
+    unsigned char *rec = (unsigned char *) xmalloc((size_t) len + 8);
+    int32_t head[2] = { (int32_t) totalpages, (int32_t) len };
+    memcpy(rec, head, 8);
+    if (tail)
+        memcpy(rec + 8, dvibuf + halfbuf, (size_t) tail);
+    memcpy(rec + 8 + tail, dvibuf, (size_t) dviptr);
+    if (write(provpagesfd, rec, (size_t) len + 8) < 0)
+        provpagesfd = -2;
+    free(rec);
+}
+
+/* Examance (issue #352): glyph outlines from XeTeX's FreeType for drawn pages, in font units: out[0] units per em, out[1] advance, then commands
+   0 x y (move), 1 x y (line), 2 cx cy x y (conic), 3 c1x c1y c2x c2y x y (cubic). The glyph is a name (Type1 with an encoding), a character code
+   -(code+1) of the font's own encoding (Type1 without one), or a glyph id. Returns the number of values (more than cap: call again with a larger
+   buffer) or a negative error. Faces stay open, so the fonts stay loaded between keystrokes. Called from a separate instance, never during a run. */
+#include FT_OUTLINE_H
+
+#define PROV_FACES 48
+static struct { char *path; int index; FT_Face face; } provfaces[PROV_FACES];
+static int provnfaces = 0;
+
+static FT_Face provface(const char *path, int index)
+{
+    int i;
+    FT_Face f = NULL;
+    for (i = 0; i < provnfaces; i++)
+        if (provfaces[i].index == index && strcmp(provfaces[i].path, path) == 0)
+            return provfaces[i].face;
+    if (!gFreeTypeLibrary && FT_Init_FreeType(&gFreeTypeLibrary))
+        return NULL;
+    if (FT_New_Face(gFreeTypeLibrary, path, index, &f))
+        return NULL;
+    /* A Type1 font's own encoding, for character codes without an encoding file. */
+    if (FT_Select_Charmap(f, FT_ENCODING_ADOBE_CUSTOM) && FT_Select_Charmap(f, FT_ENCODING_ADOBE_STANDARD))
+        FT_Select_Charmap(f, FT_ENCODING_UNICODE);
+    if (provnfaces == PROV_FACES) {
+        FT_Done_Face(provfaces[0].face);
+        free(provfaces[0].path);
+        memmove(provfaces, provfaces + 1, sizeof(provfaces[0]) * (PROV_FACES - 1));
+        provnfaces--;
+    }
+    provfaces[provnfaces].path = xstrdup(path);
+    provfaces[provnfaces].index = index;
+    provfaces[provnfaces].face = f;
+    provnfaces++;
+    return f;
+}
+
+typedef struct { int32_t *out; int n; int cap; } ProvSink;
+
+static void provput(ProvSink *s, int32_t v)
+{
+    if (s->n < s->cap)
+        s->out[s->n] = v;
+    s->n++;
+}
+
+static int provmove(const FT_Vector *to, void *u) { provput(u, 0); provput(u, to->x); provput(u, to->y); return 0; }
+static int provline(const FT_Vector *to, void *u) { provput(u, 1); provput(u, to->x); provput(u, to->y); return 0; }
+static int provconic(const FT_Vector *c, const FT_Vector *to, void *u)
+{
+    provput(u, 2); provput(u, c->x); provput(u, c->y); provput(u, to->x); provput(u, to->y);
+    return 0;
+}
+static int provcubic(const FT_Vector *c1, const FT_Vector *c2, const FT_Vector *to, void *u)
+{
+    provput(u, 3); provput(u, c1->x); provput(u, c1->y); provput(u, c2->x); provput(u, c2->y); provput(u, to->x); provput(u, to->y);
+    return 0;
+}
+
+int prov_glyph_outline(const char *path, int index, int glyph, const char *name, int32_t *out, int cap)
+{
+    static const FT_Outline_Funcs funcs = { provmove, provline, provconic, provcubic, 0, 0 };
+    ProvSink sink = { out, 0, cap };
+    FT_UInt g;
+    FT_Face f = provface(path, index);
+    if (!f)
+        return -1;
+    if (name && *name)
+        g = FT_Get_Name_Index(f, (FT_String *) name);
+    else if (glyph < 0)
+        g = FT_Get_Char_Index(f, (FT_ULong) (-glyph - 1));
+    else
+        g = (FT_UInt) glyph;
+    if (FT_Load_Glyph(f, g, FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP))
+        return -2;
+    if (f->glyph->format != FT_GLYPH_FORMAT_OUTLINE)
+        return -3;
+    provput(&sink, (int32_t) f->units_per_EM);
+    provput(&sink, (int32_t) f->glyph->metrics.horiAdvance);
+    FT_Outline_Decompose(&f->glyph->outline, &funcs, &sink);
+    return sink.n;
+}
+
+/* Examance (issue #352): a character of a TFM font shipped out (formulas without unicode-math, legacy text fonts) with an origin, as a one-glyph word
+   of main.prov, so clicks in formulas land on the exact character; the code stands in for the character (letters and digits coincide with ASCII,
+   and the reader trusts an origin only where the source has that character). The origin comes from set_math_char/scan_math through the noads. */
+void provchar(int p, int h, int v, int page, int size, int code, int width)
+{
+    int32_t origin = provget(p);
+    if (origin <= 0 || !provopen())
+        return;
+    fprintf(provfile, "w %d %d %d %d %d 1 0 | 1 %d | 0 | %d | %d\n", page, h, v, width, size, (int) origin, code, provtransformed > 0 ? 1 : 0);
 }

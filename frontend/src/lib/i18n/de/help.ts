@@ -117,6 +117,7 @@ export const help = {
                 h: 'Der Editor',
                 p1: 'Jede Aufgabe ist ein LaTeX-Fragment mit Live-Vorschau: Mit LaTeX im Browser kompiliert sie nach dem ersten Kompilieren von selbst neu, während Sie tippen. „LaTeX-Bausteine einfügen“ über dem Quelltext bietet Bausteine für Lösungen, Punkte und Formatierung, dazu fachspezifische wie Baumdiagramme, Schaltungen oder Strukturformeln. Strg + F sucht, Strg + H ersetzt. Eine vorhandene Aufgabe speichert sich selbst; „Schließen“ speichert, was noch offen ist.',
                 p2: 'Mit LaTeX im Browser ist die Vorschau ein zweiter Editor: Ihr Cursor blinkt auf den Seiten, ein Klick setzt ihn (er leuchtet dann im Quelltext kurz auf), Doppel- und Dreifachklick markieren Wort und Zeile, Ziehen markiert (Leertaste oder mittlere Maustaste halten verschiebt die Seiten), und was Sie tippen, landet im LaTeX und erscheint nach etwa einer Sekunde auf der Seite. Text der Vorlage (Kopf, Punktekästchen, Aufgabentitel) zeigt nur einen Hinweis. In der Klausurvorschau öffnet ein Klick die Aufgabe im Editor an dieser Stelle.',
+                p3: 'Über der Vorschau wechseln Sie zwischen „Gezeichnete Seiten“ (schnell, direkt aus dem Satz gezeichnet) und „Exaktes PDF“; die Wahl gilt für Ihr Konto und steht auch in den Einstellungen. Seiten, die nicht gezeichnet werden können, zeigen die Seite des exakten PDFs. Download und Druck nutzen immer das exakte PDF.',
             },
             s3: {
                 h: 'Punkte, Teilaufgaben und Anforderungsbereiche',

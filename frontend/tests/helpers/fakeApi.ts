@@ -47,6 +47,7 @@ export interface FakeApiState {
   storageMode: FakeStorageMode | null;
   gradingControlsSide: 'left' | 'right';
   gradingScratchOut: boolean;
+  previewDrawnPages: boolean;
   /** Email of the last sign-in. */
   email: string;
   /** Role the sign-in reports; set `'admin'` before signing in to open the admin pages. */
@@ -382,6 +383,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     storageMode: initialMode(),
     gradingControlsSide: 'left',
     gradingScratchOut: true,
+    previewDrawnPages: true,
     email: DEFAULT_EMAIL,
     role: 'teacher',
     adminUsers: seedAdminUsers(),
@@ -412,6 +414,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     state.storageMode = initialMode();
     state.gradingControlsSide = 'left';
     state.gradingScratchOut = true;
+    state.previewDrawnPages = true;
     state.email = DEFAULT_EMAIL;
     state.role = 'teacher';
     state.adminUsers = seedAdminUsers();
@@ -506,6 +509,7 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     storage_mode: state.storageMode,
     grading_controls_side: state.gradingControlsSide,
     grading_scratch_out: state.gradingScratchOut,
+    preview_drawn_pages: state.previewDrawnPages,
     allowed_storage_modes: state.role === 'admin' ? [] : [...ALLOWED_MODES],
     features:
       state.role === 'admin'
@@ -582,6 +586,10 @@ export function createFakeApi(opts: FakeApiOptions = {}): FakeApi {
     }
     if (action === 'grading-scratch-out') {
       state.gradingScratchOut = body?.grading_scratch_out !== false;
+      return ok(capabilities());
+    }
+    if (action === 'preview-drawn-pages') {
+      state.previewDrawnPages = body?.preview_drawn_pages !== false;
       return ok(capabilities());
     }
     return undefined;

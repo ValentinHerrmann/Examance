@@ -202,6 +202,7 @@ async def test_account_export_shape(client: AsyncClient, db: AsyncSession) -> No
         "review_mail",
         "grading_controls_side",
         "grading_scratch_out",
+        "preview_drawn_pages",
         "exam_logo",
         "latex_packages",
         "latex_all_subject_packages",

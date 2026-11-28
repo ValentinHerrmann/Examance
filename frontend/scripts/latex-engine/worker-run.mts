@@ -5,26 +5,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { compareCodeUnits } from '../../src/lib/utils/compare';
+import { assetFiles, localFile, localManifest } from './localTree.mts';
 
 const [engineDir, docPath, editsPath] = process.argv.slice(2);
 if (!engineDir || !docPath) throw new Error('usage: worker-run.mts <engine dir> <doc.tex> [edits.json]');
-const root = process.env.TEXLIVE_ROOT ?? '/opt/texlive';
-const examanceCnf = path.resolve('../backend/latex-texlive/texmf.cnf');
-const SKIPPED = ['texmf-dist/doc/', 'texmf-dist/source/', 'texmf-dist/scripts/'];
-
-function manifest() {
-  const files: Record<string, number> = { 'examance/texmf.cnf': fs.statSync(examanceCnf).size };
-  if (fs.existsSync(path.join(root, 'texmf.cnf'))) files['texmf.cnf'] = fs.statSync(path.join(root, 'texmf.cnf')).size;
-  for (const top of ['texmf-dist', 'texmf-var']) {
-    for (const rel of fs.readdirSync(path.join(root, top), { recursive: true }) as string[]) {
-      const name = `${top}/${rel}`;
-      const st = fs.statSync(path.join(root, name));
-      if (st.isFile() && !SKIPPED.some((s) => name.startsWith(s))) files[name] = st.size;
-    }
-  }
-  return { version: 'local', files };
-}
-
 // The worker's view of the world: `self` with postMessage back to this "main thread", and fetch of /core/latex-engine/ from the engine dir.
 const listeners: ((data: any) => void)[] = [];
 let workerOnMessage: ((e: { data: unknown }) => void) | null = null;
@@ -43,25 +27,20 @@ const realFetch = globalThis.fetch;
 };
 const send = (data: unknown) => workerOnMessage!({ data });
 
-const tree = manifest();
+const tree = localManifest();
 const requested = new Set<string>();
 listeners.push((m) => {
   if (m?.type !== 'tree-request') return;
   if (m.kind === 'manifest') send({ type: 'tree-reply', reqId: m.reqId, value: tree });
   else {
     requested.add(m.path);
-    const file = m.path === 'examance/texmf.cnf' ? examanceCnf : path.join(root, m.path);
-    send({ type: 'tree-reply', reqId: m.reqId, value: new Uint8Array(fs.readFileSync(file)) });
+    send({ type: 'tree-reply', reqId: m.reqId, value: localFile(m.path) });
   }
 });
 
 await import('../../src/lib/latex/compiler.worker');
 
-const assetsDir = path.resolve('../backend/latex-assets');
-const assets = (fs.readdirSync(assetsDir, { recursive: true }) as string[])
-  .filter((rel) => fs.statSync(path.join(assetsDir, rel)).isFile())
-  .map((rel) => ({ path: rel, content: new Uint8Array(fs.readFileSync(path.join(assetsDir, rel))) }));
-send({ type: 'assets', files: assets });
+send({ type: 'assets', files: assetFiles() });
 
 const resourceDir = process.env.RESOURCES;
 const resources = resourceDir

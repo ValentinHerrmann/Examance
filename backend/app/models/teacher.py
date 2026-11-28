@@ -79,6 +79,8 @@ class Teacher(Base):
     grading_controls_side: Mapped[str | None] = mapped_column(String(8), nullable=True)
     # Scribbling over pen marks and stamps erases them (issue #330): null = on, false = off.
     grading_scratch_out: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # Exercise editor preview shows pages drawn from the engine instead of the exact PDF (issue #352): null = on.
+    preview_drawn_pages: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     # LaTeX packages added to every document of the account (#108, app/services/latex_packages.py).
     latex_packages: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     # Load every subject package in every document instead of only the ones it uses (issue #341).

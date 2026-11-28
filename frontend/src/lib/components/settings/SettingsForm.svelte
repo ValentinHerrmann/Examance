@@ -2,7 +2,9 @@
   import type { StorageMode } from "#lib/stores/storagePolicy";
   import { t, LOCALES, LOCALE_LABELS, type Locale } from "#lib/i18n";
   import { themePreference, setThemePreference, THEME_PREFERENCES } from "#lib/stores/theme";
-  import { Badge, Card, OptionTile } from "#lib/components/ui";
+  import { Alert, Badge, Card, OptionTile } from "#lib/components/ui";
+  import { apiErrorMessage } from "#lib/api/client";
+  import { capabilitiesStore, savePreviewDrawnPages } from "#lib/stores/capabilities";
   import { dataPlaceIcons, latexPlaceIcons } from "#lib/components/storage/placeIcons";
   import HelpButton from "#lib/components/help/HelpButton.svelte";
   import InfoTip from "#lib/components/help/InfoTip.svelte";
@@ -40,6 +42,23 @@
     light: "nav.themeLight",
     dark: "nav.themeDark",
   } as const;
+
+  /** The exercise editor's preview mode is only offered while the browser engine compiles. */
+  let drawnPages = $derived($capabilitiesStore?.previewDrawnPages !== false);
+  let previewBusy = $state(false);
+  let previewError = $state("");
+
+  async function setPreviewDrawn(next: boolean) {
+    previewBusy = true;
+    previewError = "";
+    try {
+      await savePreviewDrawnPages(next);
+    } catch (err) {
+      previewError = apiErrorMessage(err, $t("settings.latex.previewFailed"));
+    } finally {
+      previewBusy = false;
+    }
+  }
 
   const sectionId = "scroll-mt-16 lg:scroll-mt-4";
   const options = "flex flex-col gap-3";
@@ -127,6 +146,36 @@
     </div>
     {#if !serverLatexEnabled}
       <p class="m-0 mt-3 text-xs text-muted">{$t("storagePolicy.notEnabled")}</p>
+    {/if}
+    {#if $capabilitiesStore}
+      <div class="mt-4 border-t border-line pt-4">
+        <h3 class="m-0 mb-1 text-base font-medium text-content">{$t("settings.latex.previewHeading")}</h3>
+        <p class={description}>{$t("settings.latex.previewHint")}</p>
+        <div class={options}>
+          <OptionTile
+            name="previewMode"
+            value="drawn"
+            checked={drawnPages}
+            disabled={previewBusy || latexCompilation === "server"}
+            title={$t("settings.latex.previewDrawn")}
+            onclick={() => setPreviewDrawn(true)}
+          />
+          <OptionTile
+            name="previewMode"
+            value="exact"
+            checked={!drawnPages}
+            disabled={previewBusy || latexCompilation === "server"}
+            title={$t("settings.latex.previewExact")}
+            onclick={() => setPreviewDrawn(false)}
+          />
+        </div>
+        {#if latexCompilation === "server"}
+          <p class="m-0 mt-3 text-xs text-muted">{$t("settings.latex.previewServerOnly")}</p>
+        {/if}
+        {#if previewError}
+          <Alert severity="danger" class="mt-3">{previewError}</Alert>
+        {/if}
+      </div>
     {/if}
   </Card>
 </div>

@@ -1,8 +1,9 @@
 name: LaTeX browser engine checks
 
-# Checks of the browser LaTeX engine against the pinned TeX Live (issue #350): the template prefetch list
+# Checks of the browser LaTeX engine against the pinned TeX Live (issues #350, #352): the template prefetch list
 # (src/lib/latex/engine/templateFiles.json) must match a fresh recording, the click-to-source accuracy run must clear its bar,
-# and the engine's Playwright specs (live preview, inline editing, click accuracy) run with the real engine. TeX Live is
+# the drawn pages must match the PDF (render-compare), and the engine's Playwright specs (live preview, inline editing,
+# click accuracy, drawn pages) run with the real engine. TeX Live is
 # installed once per snapshot and package list and then restored from the cache.
 on:
   pull_request:
@@ -15,11 +16,13 @@ on:
       - frontend/src/lib/components/PdfEmbedViewer.svelte
       - frontend/src/lib/components/DualPdfPreview.svelte
       - frontend/src/lib/components/latex/**
+      - frontend/src/lib/exercise-library/editorPreview.svelte.ts
       - frontend/static/core/latex-engine/**
       - frontend/scripts/latex-engine/**
       - frontend/e2e/inlineEdit.spec.ts
       - frontend/e2e/clickAccuracy.spec.ts
       - frontend/e2e/livePreview.spec.ts
+      - frontend/e2e/drawnPages.spec.ts
       - frontend/tests/helpers/fakeTexTree.ts
       - .github/workflows/latex-browser.yml
   push:
@@ -98,10 +101,13 @@ jobs:
           PYTHON: uv run --no-project --with pdfminer.six==20260107 python
         run: cd frontend && npm run latex:click-accuracy
 
+      - name: Drawn pages against the PDF
+        run: cd frontend && npm run latex:render-compare
+
       - name: Install Chromium
         run: cd frontend && ./node_modules/.bin/playwright install --with-deps --only-shell chromium
       - name: Engine specs
-        run: cd frontend && ./node_modules/.bin/playwright test e2e/livePreview.spec.ts e2e/inlineEdit.spec.ts e2e/clickAccuracy.spec.ts --project=desktop
+        run: cd frontend && ./node_modules/.bin/playwright test e2e/livePreview.spec.ts e2e/inlineEdit.spec.ts e2e/clickAccuracy.spec.ts e2e/drawnPages.spec.ts --project=desktop
       - name: Upload the Playwright report
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

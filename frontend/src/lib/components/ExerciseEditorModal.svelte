@@ -4,6 +4,7 @@
   import type { ExerciseRecord } from "#lib/db/schema";
   import { sessionStore } from "#lib/stores/session";
   import { effectiveLatexStore } from "#lib/stores/capabilities";
+  import PreviewModeSwitch from "#lib/components/latex/PreviewModeSwitch.svelte";
   import { askToShare } from "#lib/exercise-library/askToShare";
   import { parseExerciseScore } from "#lib/latex/scoreParser";
   import type { McOption } from "#lib/latex/mcOptions";
@@ -356,6 +357,7 @@
   });
 </script>
 
+{#snippet previewMode()}<PreviewModeSwitch />{/snippet}
 {#snippet layoutReport()}
   <LayoutReportButton
     compact
@@ -534,6 +536,8 @@
           report={preview.pdfUrl || preview.solutionUrl || preview.error ? layoutReport : undefined}
           edit={(pane) => preview.pageEdit(pane, () => (isMc ? undefined : latexEditor), () => editorLatexBody)}
           onShown={(pane, url) => preview.sync.shown(pane, url)}
+          drawn={(pane) => preview.drawnFor(pane)}
+          controls={previewMode}
         />
         <TemplateTextTip sync={preview.sync} />
       </div>

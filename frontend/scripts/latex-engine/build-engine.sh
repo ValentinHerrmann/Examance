@@ -56,6 +56,8 @@ WASMFLAGS="-O2 -sSUPPORT_LONGJMP=emscripten -ffile-prefix-map=$WORK=."
 CONFFLAGS="-sSUPPORT_LONGJMP=emscripten -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=16MB -sINITIAL_MEMORY=128MB"
 # ours: Asyncify only at the final xetex link; configure's link probes would each run the pass.
 LINKFLAGS="$CONFFLAGS -O2 -sMAXIMUM_MEMORY=2GB -sASYNCIFY=1 -sASYNCIFY_IMPORTS=['wasi_snapshot_preview1.fd_read'] -sEXPORTED_FUNCTIONS=['_main','_malloc','_free'] -sEXPORTED_RUNTIME_METHODS=[] -sINVOKE_RUN=0"
+# ours: xetex alone also exports the glyph outlines of drawn pages (issue #352); xdvipdfmx has no such function.
+XETEX_LINKFLAGS="$CONFFLAGS -O2 -sMAXIMUM_MEMORY=2GB -sASYNCIFY=1 -sASYNCIFY_IMPORTS=['wasi_snapshot_preview1.fd_read'] -sEXPORTED_FUNCTIONS=['_main','_malloc','_free','_prov_glyph_outline'] -sEXPORTED_RUNTIME_METHODS=[] -sINVOKE_RUN=0"
 CXXWASMFLAGS="$WASMFLAGS -DHB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR"
 
 BUILD_TRIPLE="$("$SRC/build-aux/config.guess")"
@@ -118,7 +120,7 @@ sed -i.bak2 "s|^FONTCONFIG_LIBS = .*|FONTCONFIG_LIBS = $BUILD/libfcshim.a|" texk
 rm -f texk/web2c/xetexdir/libxetex_a-XeTeXFontMgr_FC.o texk/web2c/xetexdir/libxetex_a-XeTeX_ext.o \
       texk/web2c/xetexdir/libxetex_a-XeTeXLayoutInterface.o
 echo "=== link xetex ==="
-emmake make -C texk/web2c -j"$JOBS" xetex LDFLAGS="$LINKFLAGS"
+emmake make -C texk/web2c -j"$JOBS" xetex LDFLAGS="$XETEX_LINKFLAGS"
 
 # ours: xdvipdfmx with the same flags, so the same host fetches its files lazily; getpass (the encryption prompt) is stubbed.
 echo "=== link xdvipdfmx ==="

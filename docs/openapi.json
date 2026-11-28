@@ -7645,6 +7645,66 @@
         }
       }
     },
+    "/api/v1/user/preview-drawn-pages": {
+      "put": {
+        "tags": [
+          "user"
+        ],
+        "summary": "Set Preview Drawn Pages",
+        "description": "Choose drawn pages or the exact PDF for the exercise editor's live preview (issue #352).",
+        "operationId": "set_preview_drawn_pages_api_v1_user_preview_drawn_pages_put",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewDrawnPagesUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilitiesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/user/purge-server-student-data": {
       "post": {
         "tags": [
@@ -11442,6 +11502,11 @@
           "grading_scratch_out": {
             "type": "boolean",
             "title": "Grading Scratch Out",
+            "default": true
+          },
+          "preview_drawn_pages": {
+            "type": "boolean",
+            "title": "Preview Drawn Pages",
             "default": true
           }
         },
@@ -16292,6 +16357,20 @@
           "ready"
         ],
         "title": "PresenceCountsResponse"
+      },
+      "PreviewDrawnPagesUpdate": {
+        "properties": {
+          "preview_drawn_pages": {
+            "type": "boolean",
+            "title": "Preview Drawn Pages"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "preview_drawn_pages"
+        ],
+        "title": "PreviewDrawnPagesUpdate"
       },
       "PseudonymList": {
         "properties": {

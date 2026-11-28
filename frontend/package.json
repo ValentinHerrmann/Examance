@@ -18,6 +18,7 @@
     "lint:sonar": "eslint --config eslint.sonar.config.js",
     "test:unit": "vitest",
     "latex:click-accuracy": "vite-node scripts/latex-engine/accuracy-run.mts",
+    "latex:render-compare": "vite-node scripts/latex-engine/render-compare.mts",
     "latex:record-tree": "vite-node scripts/latex-engine/record-template-files.mts",
     "test:e2e": "playwright test",
     "sri:verify": "node scripts/verify-sri.mjs"
@@ -41,6 +42,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^9.39.5",
+    "@napi-rs/canvas": "1.0.10",
     "@playwright/test": "^1.44.0",
     "@sveltejs/adapter-static": "^4.0.1",
     "@sveltejs/kit": "^3.2.0",

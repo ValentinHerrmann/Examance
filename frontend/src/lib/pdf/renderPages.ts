@@ -63,3 +63,15 @@ export function renderPdfPage(bytes: Uint8Array, n: number, widthPx: number): Pr
     return pageToUrl(page, Math.min(widthPx, MAX_WIDTH_PX) / base.width);
   });
 }
+
+/** Every page's size in points, without rendering (drawn pages fill in the pages they could not draw, issue #352). */
+export function pdfPageSizes(bytes: Uint8Array): Promise<{ width: number; height: number }[]> {
+  return withDocument(bytes, (doc) =>
+    Promise.all(
+      Array.from({ length: doc.numPages }, async (_, i) => {
+        const v = (await doc.getPage(i + 1)).getViewport({ scale: 1 });
+        return { width: v.width as number, height: v.height as number };
+      }),
+    ),
+  );
+}

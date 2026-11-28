@@ -1,4 +1,6 @@
 /** The server's pinned TeX Live tree as the engine sees it (issue #346): sizes from the manifest, bytes fetched on first read and kept in IndexedDB. */
+import { compareCodeUnits } from '#lib/utils/compare';
+
 
 /** Where the engine mounts the tree: the server's own prefix, so kpathsea derives the same variables from the same texmf.cnf. */
 export const TREE_ROOT = '/opt/texlive';
@@ -109,6 +111,21 @@ export class LazyTree implements Tree {
 
   isDir(path: string): boolean {
     return this.dirs.has(path);
+  }
+
+  private fontIndex: Map<string, string> | null = null;
+
+  /** The full path of a font support file (.pfb, .enc, .tfm, .map) by its name, as kpathsea finds it; the first in path order wins (drawn pages, issue #352). */
+  findFont(name: string): string | null {
+    if (!this.fontIndex) {
+      this.fontIndex = new Map();
+      for (const rel of Object.keys(this.manifest.files).sort(compareCodeUnits)) {
+        if (!rel.startsWith('texmf-dist/fonts/') && !rel.startsWith('texmf-var/fonts/')) continue;
+        const base = rel.slice(rel.lastIndexOf('/') + 1);
+        if (!this.fontIndex.has(base)) this.fontIndex.set(base, `${TREE_ROOT}/${rel}`);
+      }
+    }
+    return this.fontIndex.get(name) ?? null;
   }
 
   cached(path: string): Uint8Array | null {

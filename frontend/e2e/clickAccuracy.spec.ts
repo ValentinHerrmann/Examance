@@ -1,7 +1,7 @@
 /** PDF → editor clicks in the real exercise editor (issue #347), with the real browser engine: every word of a multi-line, hyphenating body is clicked where the code editor's caret shows its middle character, and the code cursor must land exactly there, also after recompiles and right after typing (the PDF on screen is then older than the text); a recompile shows the new pages only once they are sharp; a click in the PDF flashes the code cursor, a click in the code editor pulses the page caret. Needs a local TeX Live (`tests/helpers/fakeTexTree.ts`). */
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './helpers/guards';
-import { exerciseEditor, setCodeMirror, signInFirstTime, t } from './helpers/flows';
+import { exerciseEditor, setCodeMirror, showExactPdf, signInFirstTime, t } from './helpers/flows';
 import { gotoExerciseLibrary } from './helpers/nav';
 import { hasLocalTexTree } from '../tests/helpers/fakeTexTree';
 
@@ -130,6 +130,7 @@ test.describe('click accuracy', () => {
     await setCodeMirror(page, editor, BODY + FILLER, 0);
     await editor.getByRole('button', { name: await t(page, 'exercises.editor.previewButton') }).click();
     await expect(editor.getByRole('img', { name: await t(page, 'common.pdfPage') }).first()).toBeVisible({ timeout: 240_000 });
+    await showExactPdf(page, editor);
 
     const wrong = await misses(page, editor, 'first PDF');
 
@@ -192,6 +193,7 @@ test.describe('click accuracy', () => {
     await editor.getByRole('button', { name: await t(page, 'exercises.editor.previewButton') }).click();
     const sheet = editor.getByRole('img', { name: await t(page, 'common.pdfPage') }).first();
     await expect(sheet).toBeVisible({ timeout: 240_000 });
+    await showExactPdf(page, editor);
     // Zoomed out with Ctrl+wheel until the one page fits well inside the pane, so nothing can scroll.
     const box = await sheet.boundingBox();
     if (box) await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);

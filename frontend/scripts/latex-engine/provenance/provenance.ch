@@ -40,6 +40,19 @@ get_avail:=p;
 @z
 
 @x
+  begin decr(words); mem[r+words]:=mem[p+words];
+  end
+
+@ @<Case statement to copy...@>=
+@y
+  begin decr(words); mem[r+words]:=mem[p+words];
+  end;
+if is_char_node(p) then prov_set(r, prov_get(p)) {a copied character keeps its origin (the shipout hooks copy pages)}
+
+@ @<Case statement to copy...@>=
+@z
+
+@x
   begin cur_chr:=buffer[loc]; incr(loc);
 @y
   begin cur_chr:=buffer[loc]; incr(loc);
@@ -90,12 +103,37 @@ get_avail:=p;
 @z
 
 @x
+      dvi_out(qo(c));@/
+      cur_h:=cur_h+char_width(f)(orig_char_info(f)(c));
+@y
+      dvi_out(qo(c));@/
+      if p<>lig_trick then prov_char(p, cur_h, cur_v, total_pages+1, font_size[f], qo(c), char_width(f)(orig_char_info(f)(c)));
+      cur_h:=cur_h+char_width(f)(orig_char_info(f)(c));
+@z
+
+@x
 page_loc:=dvi_offset+dvi_ptr;
 dvi_out(bop);
 @y
 page_loc:=dvi_offset+dvi_ptr;
 prov_page;
 dvi_out(bop);
+@z
+
+@x
+dvi_out(eop); incr(total_pages); cur_s:=-1;
+if not no_pdf_output then fflush(dvi_file);
+@y
+dvi_out(eop); incr(total_pages); cur_s:=-1;
+if not no_pdf_output then fflush(dvi_file);
+prov_eop;
+@z
+
+@x
+mem[supscr(p)].hh:=empty_field;
+@y
+mem[supscr(p)].hh:=empty_field;
+prov_set(nucleus(p), 0); prov_set(subscr(p), 0); prov_set(supscr(p), 0);
 @z
 
 @x
@@ -130,6 +168,20 @@ dvi_out(bop);
           set_native_char(tail, i - prevOffs, native_text[s + i]);
 @y
           begin set_native_char(tail, i - prevOffs, native_text[s + i]); prov_from_buf(tail, i - prevOffs, s + i); end;
+@z
+
+@x
+math_char: begin cur_mlist:=new_noad; mem[nucleus(cur_mlist)]:=mem[p];
+@y
+math_char: begin cur_mlist:=new_noad; mem[nucleus(cur_mlist)]:=mem[p];
+  prov_set(nucleus(cur_mlist), prov_get(p));
+@z
+
+@x
+  begin delta:=char_italic(cur_f)(cur_i); p:=new_character(cur_f,qo(cur_c));
+@y
+  begin delta:=char_italic(cur_f)(cur_i); p:=new_character(cur_f,qo(cur_c));
+  if p<>null then prov_set(p, prov_get(nucleus(q)));
 @z
 
 @x
@@ -191,6 +243,18 @@ dvi_out(bop);
         set_native_char(tail, main_p, native_text[main_p]);
 @y
         begin set_native_char(tail, main_p, native_text[main_p]); prov_from_buf(tail, main_p, main_p); end;
+@z
+
+@x
+math_type(p):=math_char; character(p):=qi(c mod @"10000);
+@y
+math_type(p):=math_char; character(p):=qi(c mod @"10000); prov_set(p, prov_cur);
+@z
+
+@x
+  character(nucleus(p)):=qi(ch mod @"10000);
+@y
+  character(nucleus(p)):=qi(ch mod @"10000); prov_set(nucleus(p), prov_cur);
 @z
 
 @x

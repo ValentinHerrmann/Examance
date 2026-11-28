@@ -353,3 +353,10 @@ export async function t(page: Page, key: string, vars?: Record<string, string | 
 }
 
 export type { Locale } from './i18n';
+
+/** The exercise editor's preview as the exact PDF (EmbedPDF) instead of drawn pages (issue #352), for specs about EmbedPDF's own behaviour. */
+export async function showExactPdf(page: Page, editor: Locator): Promise<void> {
+  await editor.getByRole('radio', { name: await t(page, 'exercises.editor.previewExact') }).click();
+  await expect(editor.locator('.embed-pdf-viewer embedpdf-container').first()).toBeVisible({ timeout: 60_000 });
+  await expect(editor.getByRole('img', { name: await t(page, 'common.pdfPage') }).first()).toBeVisible({ timeout: 60_000 });
+}
