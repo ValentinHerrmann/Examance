@@ -92,11 +92,6 @@ export class LazyTree implements Tree {
     return new LazyTree(manifest, source, cache ? await openCache(manifest.version) : null);
   }
 
-  /** Paths fetched so far (the template list is recorded from this, scripts/latex-engine/node-run.mts). */
-  loadedPaths(): string[] {
-    return [...this.bytes.keys()];
-  }
-
   get version(): string {
     return this.manifest.version;
   }

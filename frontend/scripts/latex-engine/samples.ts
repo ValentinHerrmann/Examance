@@ -175,9 +175,14 @@ function exerciseDoc(exercise: SampleExercise, solution: boolean): string {
   return buildExerciseDocument(formatExerciseLatex(exercise.body, exercise.name, undefined, exercise.name), { solution, accountPackages: [] });
 }
 
-export const SAMPLES: Sample[] = [
+/** Samples that use only the template, no lazy subject package (record-template-files.mts). */
+export const TEMPLATE_SAMPLES: Sample[] = [
   { id: 'exam', title: '12-task exam (task sheet)', exercises: EXAM_TASKS, build: (ex) => examDoc(ex, false) },
   { id: 'exam-solution', title: '12-task exam (solution)', exercises: EXAM_TASKS, build: (ex) => examDoc(ex, true) },
+];
+
+export const SAMPLES: Sample[] = [
+  ...TEMPLATE_SAMPLES,
   ...SUBJECT_TASKS.map((task) => ({ id: `exercise-${task.name}`, title: `Exercise: ${task.name}`, exercises: [task], build: (ex: SampleExercise[]) => exerciseDoc(ex[0], false) })),
 ];
 

@@ -1,8 +1,10 @@
 // Drives src/lib/latex/compiler.worker.ts under Node through its real message protocol (formats, sessions, aux seeds, xdvipdfmx).
 // Usage: npx vite-node scripts/latex-engine/worker-run.mts <engine dir> <doc.tex> [edits.json]   (tree: TEXLIVE_ROOT, default /opt/texlive; RESOURCES: a dir whose files go in as teacher resources, e.g. examance-logo.pdf)
 // Prints one JSON line per compile; each edit compiles in the same session, as the exercise editor would.
+// RECORD_TREE=<json file> merges the tree files the worker requested into that list (record-template-files.mts records src/lib/latex/engine/templateFiles.json so).
 import fs from 'node:fs';
 import path from 'node:path';
+import { compareCodeUnits } from '../../src/lib/utils/compare';
 
 const [engineDir, docPath, editsPath] = process.argv.slice(2);
 if (!engineDir || !docPath) throw new Error('usage: worker-run.mts <engine dir> <doc.tex> [edits.json]');
@@ -42,10 +44,12 @@ const realFetch = globalThis.fetch;
 const send = (data: unknown) => workerOnMessage!({ data });
 
 const tree = manifest();
+const requested = new Set<string>();
 listeners.push((m) => {
   if (m?.type !== 'tree-request') return;
   if (m.kind === 'manifest') send({ type: 'tree-reply', reqId: m.reqId, value: tree });
   else {
+    requested.add(m.path);
     const file = m.path === 'examance/texmf.cnf' ? examanceCnf : path.join(root, m.path);
     send({ type: 'tree-reply', reqId: m.reqId, value: new Uint8Array(fs.readFileSync(file)) });
   }
@@ -90,5 +94,10 @@ summary('same document again', await compile(doc));
 for (const edit of editsPath ? (JSON.parse(fs.readFileSync(editsPath, 'utf8')) as { label: string; tex: string }[]) : []) {
   summary(edit.label, await compile(edit.tex)); // NOSONAR: edits are measured one after another in one session
   await compile(doc); // NOSONAR: back to the base text before the next edit
+}
+if (process.env.RECORD_TREE) {
+  const file = process.env.RECORD_TREE;
+  const before: string[] = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
+  fs.writeFileSync(file, `${JSON.stringify([...new Set([...before, ...requested])].sort(compareCodeUnits), null, 1)}\n`);
 }
 process.exit(0);

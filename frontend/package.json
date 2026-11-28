@@ -17,6 +17,8 @@
     "lint": "eslint .",
     "lint:sonar": "eslint --config eslint.sonar.config.js",
     "test:unit": "vitest",
+    "latex:click-accuracy": "vite-node scripts/latex-engine/accuracy-run.mts",
+    "latex:record-tree": "vite-node scripts/latex-engine/record-template-files.mts",
     "test:e2e": "playwright test",
     "sri:verify": "node scripts/verify-sri.mjs"
   },
@@ -59,6 +61,7 @@
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.0",
     "vite": "^8.3.5",
+    "vite-node": "6.0.0",
     "vite-plugin-wasm": "^3.6.0",
     "vitest": "^4.1.12"
   },
