@@ -1,0 +1,111 @@
+name: LaTeX browser engine checks
+
+# Checks of the browser LaTeX engine against the pinned TeX Live (issue #350): the template prefetch list
+# (src/lib/latex/engine/templateFiles.json) must match a fresh recording, the click-to-source accuracy run must clear its bar,
+# and the engine's Playwright specs (live preview, inline editing, click accuracy) run with the real engine. TeX Live is
+# installed once per snapshot and package list and then restored from the cache.
+on:
+  pull_request:
+    paths:
+      - backend/latex-assets/**
+      - backend/latex-texlive/**
+      - backend/Dockerfile
+      - frontend/src/lib/latex/**
+      - frontend/src/lib/exam/examPreview.ts
+      - frontend/src/lib/components/PdfEmbedViewer.svelte
+      - frontend/src/lib/components/DualPdfPreview.svelte
+      - frontend/src/lib/components/latex/**
+      - frontend/static/core/latex-engine/**
+      - frontend/scripts/latex-engine/**
+      - frontend/e2e/inlineEdit.spec.ts
+      - frontend/e2e/clickAccuracy.spec.ts
+      - frontend/e2e/livePreview.spec.ts
+      - frontend/tests/helpers/fakeTexTree.ts
+      - .github/workflows/latex-browser.yml
+  push:
+    branches: [main]
+    paths:
+      - backend/latex-assets/**
+      - backend/latex-texlive/**
+      - frontend/src/lib/latex/**
+      - frontend/static/core/latex-engine/**
+      - frontend/scripts/latex-engine/**
+  workflow_dispatch:
+
+concurrency:
+  group: latex-browser-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  engine:
+    name: Template files, click accuracy, engine specs
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The snapshot and installer checksum are the backend image's (backend/Dockerfile), so both engines read the same tree.
+      - name: TeX Live version
+        id: tl
+        run: |
+          echo "snapshot=$(sed -n 's/^ARG TL_SNAPSHOT=//p' backend/Dockerfile | head -1)" >> "$GITHUB_OUTPUT"
+          echo "sha=$(sed -n 's/^ARG TL_INSTALLER_SHA256=//p' backend/Dockerfile | head -1)" >> "$GITHUB_OUTPUT"
+          sudo mkdir -p /opt/texlive && sudo chown "$USER" /opt/texlive
+
+      - name: Restore TeX Live
+        id: texlive
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /opt/texlive
+          key: texlive-${{ runner.os }}-${{ steps.tl.outputs.snapshot }}-${{ hashFiles('backend/latex-texlive/packages.txt', 'backend/latex-texlive/profile.txt', 'backend/latex-texlive/install.sh') }}
+
+      - name: Install TeX Live
+        if: steps.texlive.outputs.cache-hit != 'true'
+        env:
+          TL_SNAPSHOT: ${{ steps.tl.outputs.snapshot }}
+          TL_INSTALLER_SHA256: ${{ steps.tl.outputs.sha }}
+        run: |
+          sudo --preserve-env=TL_SNAPSHOT,TL_INSTALLER_SHA256 sh backend/latex-texlive/install.sh
+          sudo chown -R "$USER" /opt/texlive
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: frontend/.node-version
+      - name: Restore node_modules
+        id: modules
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: frontend/node_modules
+          key: e2e-node-modules-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json', 'frontend/.node-version') }}
+      # No lifecycle scripts: the only ones in the tree are macOS-only fsevents.
+      - name: Install deps
+        if: steps.modules.outputs.cache-hit != 'true'
+        run: cd frontend && npm ci --ignore-scripts
+      - name: SvelteKit sync
+        run: cd frontend && ./node_modules/.bin/svelte-kit sync
+
+      # A diff means the template now loads other TeX Live files: run `npm run latex:record-tree` and commit the list.
+      - name: Template prefetch list
+        run: |
+          cd frontend && npm run latex:record-tree
+          git diff --exit-code -- src/lib/latex/engine/templateFiles.json
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Click-to-source accuracy
+        env:
+          PYTHON: uv run --no-project --with pdfminer.six==20260107 python
+        run: cd frontend && npm run latex:click-accuracy
+
+      - name: Install Chromium
+        run: cd frontend && ./node_modules/.bin/playwright install --with-deps --only-shell chromium
+      - name: Engine specs
+        run: cd frontend && ./node_modules/.bin/playwright test e2e/livePreview.spec.ts e2e/inlineEdit.spec.ts e2e/clickAccuracy.spec.ts --project=desktop
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report-latex-browser
+          path: frontend/playwright-report
+          retention-days: 7

@@ -40,7 +40,7 @@ if ((${#tools[@]})); then
   (ruff check --preview --select RUF029,S --output-format concise "${tools[@]}" || true) | only_changed "" || status=1
 fi
 
-# Only files the TypeScript project covers: the type-aware rules need it.
+# Only files a TypeScript project covers (e2e has its own e2e/tsconfig.json): the type-aware rules need it.
 mapfile -t fe < <(changed 'frontend/src/*.ts' 'frontend/src/*.svelte' 'frontend/tests/*.ts' 'frontend/e2e/*.ts' | sed 's#^frontend/##' | sort -u)
 if ((${#fe[@]})); then
   (cd frontend && npx --no-install eslint --config eslint.sonar.config.js --format json "${fe[@]}" || true) | only_changed frontend/ || status=1

@@ -2,11 +2,9 @@
 // Usage: npx vite-node scripts/latex-engine/node-run.mts <engine dir with xetex.wasm, xdvipdfmx.wasm, icudt78l.dat> <doc.tex> [edits.json]
 // Reads the TeX Live tree from TEXLIVE_ROOT (default /opt/texlive, the backend image's) with the endpoint's filters (backend/app/services/texlive_tree.py).
 // edits.json: [{ "label": "...", "tex": "<full edited document>" }]; prints one JSON line per measurement; KEEP=<dir> writes the outputs and main.pdf.
-// RECORD_TREE=<json file> merges the tree files this run read into that list (src/lib/latex/engine/templateFiles.json is recorded so).
 import fs from 'node:fs';
 import path from 'node:path';
 import { TexEngine, type RunResult } from '../../src/lib/latex/engine/engine';
-import { compareCodeUnits } from '../../src/lib/utils/compare';
 import { LazyTree, type TreeSource } from '../../src/lib/latex/engine/tree';
 
 const [engineDir, docPath, editsPath] = process.argv.slice(2);
@@ -101,13 +99,6 @@ log({ step: 'first', ms: first.ms, passes: first.passes, exit: first.r.exitCode,
 if (process.env.KEEP) {
   for (const [p, b] of first.r.outputs) fs.writeFileSync(path.join(process.env.KEEP, path.basename(p)), b);
   if (pdf?.pdf) fs.writeFileSync(path.join(process.env.KEEP, 'main.pdf'), pdf.pdf);
-}
-
-if (process.env.RECORD_TREE) {
-  const file = process.env.RECORD_TREE;
-  const before: string[] = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
-  const now = tree.loadedPaths().map((p) => p.slice('/opt/texlive/'.length));
-  fs.writeFileSync(file, `${JSON.stringify([...new Set([...before, ...now])].sort(compareCodeUnits), null, 1)}\n`);
 }
 
 const edits: { label: string; tex: string }[] = editsPath ? JSON.parse(fs.readFileSync(editsPath, 'utf8')) : [];
