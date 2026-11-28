@@ -12,6 +12,8 @@
   import { theme as appTheme } from "#lib/stores/theme";
   import type { PageLocator } from "#lib/pdf/embedpdf";
   import PageEditLayer, { type PageEditProps } from "#lib/components/latex/PageEditLayer.svelte";
+  import ZoomOverlay, { type ZoomChoice } from "#lib/components/pdf/ZoomOverlay.svelte";
+  import { wheelZoomTarget } from "#lib/pdf/wheelZoom";
 
   interface Props {
     /** URL (including `blob:`) of the PDF to display. `null` renders nothing. */
@@ -36,35 +38,12 @@
   let unsubscribeZoom: (() => void) | null = null;
 
   let currentZoomPercent: number = $state(100);
-  let isOverlayVisible: boolean = $state(false);
-  let overlayTimeout: ReturnType<typeof setTimeout> | null = null;
-  let isMouseOverOverlay: boolean = false;
+  let overlay: ReturnType<typeof ZoomOverlay> | undefined = $state();
+  const triggerZoomOverlay = () => overlay?.show();
 
-  function triggerZoomOverlay() {
-    isOverlayVisible = true;
-    if (overlayTimeout) clearTimeout(overlayTimeout);
-    if (!isMouseOverOverlay) {
-      overlayTimeout = setTimeout(() => {
-        isOverlayVisible = false;
-      }, 2500);
-    }
-  }
-
-  function handleOverlayMouseEnter() {
-    isMouseOverOverlay = true;
-    if (overlayTimeout) clearTimeout(overlayTimeout);
-  }
-
-  function handleOverlayMouseLeave() {
-    isMouseOverOverlay = false;
-    triggerZoomOverlay();
-  }
-
-  function setZoom(level: ZoomLevel) {
-    if (zoomCap) {
-      zoomCap.requestZoom(level);
-      triggerZoomOverlay();
-    }
+  function setZoom(choice: ZoomChoice) {
+    const levels: Record<ZoomChoice, ZoomLevel> = { actual: 1.0, "fit-width": ZoomMode.FitWidth, "fit-page": ZoomMode.FitPage };
+    zoomCap?.requestZoom(levels[choice]);
   }
 
   function findScrollContainer(path: EventTarget[]): HTMLElement | null {
@@ -94,17 +73,7 @@
 
       triggerZoomOverlay();
 
-      if (zoomCap) {
-        let deltaY = e.deltaY;
-        if (e.deltaMode === 1) deltaY *= 16;
-        else if (e.deltaMode === 2) deltaY *= 100;
-
-        deltaY = Math.max(-200, Math.min(200, deltaY));
-        const scaleFactor = Math.pow(0.999, deltaY);
-        const currentZoom = zoomCap.getState()?.currentZoomLevel || 1.0;
-        const targetZoom = Math.min(Math.max(currentZoom * scaleFactor, 0.25), 5.0);
-        zoomCap.requestZoom(targetZoom);
-      }
+      if (zoomCap) zoomCap.requestZoom(wheelZoomTarget(zoomCap.getState()?.currentZoomLevel || 1.0, e));
       return;
     }
 
@@ -169,7 +138,7 @@
   }
 
   function destroy() {
-    if (overlayTimeout) clearTimeout(overlayTimeout);
+    overlay?.hide();
     unbindZoom();
     dropLayer(pending);
     dropLayer(shown);
@@ -180,7 +149,6 @@
     containerEl?.removeEventListener("wheel", handleWheel, { capture: true });
     viewer = null;
     mountedSrc = null;
-    isOverlayVisible = false;
   }
 
   async function mount(url: string) {
@@ -359,47 +327,8 @@
       {edit}
     />
   {/if}
-  {#if src && isOverlayVisible}
-    <div
-      class="zoom-overlay absolute top-2.5 right-3 z-20 flex items-center gap-1.5 rounded-md border border-navbar-hover bg-navbar px-2 py-1 text-xs font-medium text-navbar-muted shadow-md"
-      onmouseenter={handleOverlayMouseEnter}
-      onmouseleave={handleOverlayMouseLeave}
-      role="toolbar"
-      tabindex="-1"
-      aria-label={$t("common.zoomControls")}
-    >
-      <span class="min-w-9 px-1 text-center font-semibold text-navbar-content">{currentZoomPercent}%</span>
-      <span class="h-3 w-px bg-navbar-muted"></span>
-      <button
-        type="button"
-        class="cursor-pointer rounded-sm border-none bg-transparent px-1.5 py-0.5 text-xs font-medium text-navbar-muted transition-colors hover:bg-navbar-hover hover:text-navbar-content pointer-coarse:min-h-11 pointer-coarse:min-w-11"
-        onclick={() => setZoom(1.0)}
-      >
-        100%
-      </button>
-      <button
-        type="button"
-        class="inline-flex cursor-pointer items-center justify-center rounded-sm border-none bg-transparent px-1.5 py-0.5 text-navbar-muted transition-colors hover:bg-navbar-hover hover:text-navbar-content pointer-coarse:min-h-11 pointer-coarse:min-w-11"
-        onclick={() => setZoom(ZoomMode.FitWidth)}
-        aria-label={$t("common.zoomFitWidth")}
-        title={$t("common.zoomFitWidth")}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="m18 8 4 4-4 4M6 8l-4 4 4 4M2 12h20" />
-        </svg>
-      </button>
-      <button
-        type="button"
-        class="inline-flex cursor-pointer items-center justify-center rounded-sm border-none bg-transparent px-1.5 py-0.5 text-navbar-muted transition-colors hover:bg-navbar-hover hover:text-navbar-content pointer-coarse:min-h-11 pointer-coarse:min-w-11"
-        onclick={() => setZoom(ZoomMode.FitPage)}
-        aria-label={$t("common.zoomFitPage")}
-        title={$t("common.zoomFitPage")}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="m8 18 4 4 4-4M8 6l4-4 4 4M12 2v20" />
-        </svg>
-      </button>
-    </div>
+  {#if src}
+    <ZoomOverlay bind:this={overlay} percent={currentZoomPercent} onZoom={setZoom} />
   {/if}
 </div>
 
@@ -409,19 +338,5 @@
     display: block;
     width: 100%;
     height: 100%;
-  }
-
-  .zoom-overlay {
-    animation: zoom-overlay-fade-in 0.15s ease-out;
-  }
-
-  /* Slide only, no fade: a half-transparent frame has too little contrast (axe catches it mid-animation). */
-  @keyframes zoom-overlay-fade-in {
-    from {
-      transform: translateY(-2px);
-    }
-    to {
-      transform: translateY(0);
-    }
   }
 </style>

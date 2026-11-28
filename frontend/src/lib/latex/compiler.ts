@@ -42,7 +42,23 @@ export interface CompileResult {
 }
 
 /** `session` names the document (its cache slot) so the browser engine keeps its checkpoints for the next edit; without one it compiles from scratch. `synctex` asks the server for SyncTeX too (the browser engine always writes it). */
-type CompileOpts = { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo; seedAux?: AuxFile[]; session?: string; synctex?: boolean };
+type CompileOpts = { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo; seedAux?: AuxFile[]; session?: string; synctex?: boolean; drawn?: DrawnPagesRequest };
+
+/** A page the browser engine drew from its output before the PDF (issue #352); size in bp, bitmap null when it cannot be drawn exactly. */
+export interface DrawnPage {
+  page: number;
+  bitmap: ImageBitmap | null;
+  width: number;
+  height: number;
+}
+
+/** Asks the browser engine to draw each page it typesets at `scale` device pixels per bp; the PDF still follows. */
+export interface DrawnPagesRequest {
+  scale: number;
+  onPage: (page: DrawnPage) => void;
+  /** The document's page count, once every page of this compile was posted. */
+  onDone: (count: number) => void;
+}
 
 /** The browser engine itself failed (boot, download, crash, timeout), not the document: the server may compile it instead. */
 export class LocalEngineFailedError extends Error {
@@ -180,7 +196,8 @@ async function compileLocalWasm(
   onStatus?: (status: string) => void,
   resources: LatexResourceFile[] = [],
   seedAux: AuxFile[] = [],
-  session?: string
+  session?: string,
+  drawn?: DrawnPagesRequest
 ): Promise<CompileResult> {
   const runTask = async (): Promise<CompileResult> => {
     const w = acquireWorker();
@@ -205,6 +222,14 @@ async function compileLocalWasm(
 
       const onMessage = (e: MessageEvent) => {
         if (e.data.id !== id) return;
+        if (e.data.type === 'page') {
+          drawn?.onPage({ page: e.data.page, bitmap: e.data.bitmap ?? null, width: e.data.width, height: e.data.height });
+          return;
+        }
+        if (e.data.type === 'pages-done') {
+          drawn?.onDone(e.data.count);
+          return;
+        }
         if (e.data.status) {
           onStatus?.(e.data.status);
           return;
@@ -250,7 +275,7 @@ async function compileLocalWasm(
 
       w.addEventListener('message', onMessage);
       w.addEventListener('error', onError);
-      w.postMessage({ id, latexSource, resources, seedAux, session });
+      w.postMessage({ id, latexSource, resources, seedAux, session, drawn: drawn ? { scale: drawn.scale } : undefined });
     });
   };
 
@@ -314,7 +339,7 @@ async function compileMapped(
     try {
       // The logo goes in after the merge: its name is reserved, so no exercise file can collide.
       const localFiles = logo?.file ? [...resources, logo.file] : resources;
-      return await compileLocalWasm(latexSource, onStatus, localFiles, seedAux, opts.session);
+      return await compileLocalWasm(latexSource, onStatus, localFiles, seedAux, opts.session, opts.drawn);
     } catch (err) {
       if (!fallBackToServer(err)) throw err;
       console.warn('[compiler] The browser engine failed; compiling on the server instead:', err);

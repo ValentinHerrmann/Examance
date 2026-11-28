@@ -2,13 +2,16 @@
 /**
  * The browser LaTeX engine (issue #346): XeTeX with checkpoints per document session, then xdvipdfmx, on the server's TeX Live tree.
  * Protocol (compiler.ts): {type:'assets'}, {type:'preload'}, {id, latexSource, resources, seedAux, session?}; answers {id, status},
- * {type:'download', …}, {id, success, pdfBytes, missingGraphics, aux} or {id, success:false, error, log, engineFailed?, unavailable?}, and asks
+ * {type:'download', …}, {id, success, pdfBytes, missingGraphics, aux} or {id, success:false, error, log, engineFailed?, unavailable?}; with `drawn` first
+ * {id, type:'page', page, drawable, bitmap, width, height} per typeset page and {id, type:'pages-done', count} (drawn pages, issue #352); and asks
  * {type:'tree-request', reqId, kind, path?} for TeX Live files, which the main thread fetches through the authenticated API client.
  */
 import { BIN_DIR, DEFAULT_MEMORY_BUDGET, EngineUnavailableError, TexEngine, type RunResult } from './engine/engine';
 import { idb, LazyTree, TREE_ROOT, type TreeManifest, type TreeSource } from './engine/tree';
 import { dumpSource, FORMAT_LINE_SHIFT, formatKey, splitPreamble, TEX_FLAGS, withFormat } from './engine/format';
 import { pdfInputs } from './engine/pdfStep';
+import { PageRenderer, type CanvasHost } from './engine/xdvRender/renderer';
+import type { DrawContext } from './engine/xdvRender/content';
 import { compileLogForUser, describeCompileFailure, extractMissingGraphics, type CompileStep } from './compileLog';
 import templateFiles from './engine/templateFiles.json';
 import { sha256Hex } from '#lib/crypto/hex';
@@ -239,6 +242,47 @@ interface CompileRequest {
   resources?: { filename: string; content: Uint8Array }[];
   seedAux?: { path: string; content: Uint8Array }[];
   session?: string;
+  /** Draw each typeset page at `scale` device pixels per bp before the PDF (issue #352). */
+  drawn?: { scale: number };
+}
+
+// --- drawn pages ----------------------------------------------------------------------------
+
+const offscreen: CanvasHost<ImageBitmap> = {
+  create(width, height) {
+    const canvas = new OffscreenCanvas(width, height);
+    return { ctx: canvas.getContext('2d') as unknown as DrawContext, finish: () => canvas.transferToImageBitmap() };
+  },
+  path: () => new Path2D(),
+};
+
+let renderer: PageRenderer<ImageBitmap> | null = null;
+
+/** The page renderer with its own engine instance for glyph outlines, which never typesets, so its fonts stay loaded between keystrokes. */
+function rendererFor(rt: Runtime): PageRenderer<ImageBitmap> {
+  if (!renderer) {
+    const fonts = new TexEngine({ module: rt.xetex, tree: rt.tree, icuData: rt.icu, format: null, incremental: false });
+    renderer = new PageRenderer(rt.tree, (path, index, glyph, name) => fonts.glyphOutline(path, index, glyph, name), offscreen);
+  }
+  return renderer;
+}
+
+/** Draws and posts the pages a TeX pass shipped (a later pass that ships a page again redraws it), and forgets them. */
+async function postDrawnPages(rt: Runtime, req: CompileRequest, shipped: Map<number, Uint8Array>): Promise<void> {
+  const r = rendererFor(rt);
+  const pages = [...shipped].sort((a, b) => a[0] - b[0]);
+  shipped.clear();
+  try {
+    for (const [page, bytes] of pages) {
+      const drawn = await r.render(bytes, page, req.drawn!.scale); // NOSONAR: pages draw one after another, in order
+      const { width, height } = drawn.size;
+      const bitmap = drawn.drawable ? drawn.image : null;
+      self.postMessage({ id: req.id, type: 'page', page, drawable: drawn.drawable, bitmap, width, height }, bitmap ? [bitmap] : []);
+    }
+  } catch (err) {
+    // Drawing only saves time: the PDF still shows every page.
+    console.warn('[CompilerWorker] Drawing the pages failed', err);
+  }
 }
 
 const enc = new TextEncoder();
@@ -298,18 +342,21 @@ interface Timings {
   checkpointMB?: number;
 }
 
-async function typeset(s: Session, req: CompileRequest, tex: string, args: string[], t: Timings): Promise<RunResult> {
+/** `afterPass` runs after each TeX pass that succeeded (drawn pages post the pages it shipped at once). */
+async function typeset(s: Session, req: CompileRequest, tex: string, args: string[], t: Timings, afterPass?: () => Promise<void>): Promise<RunResult> {
   const invalid = feedInputs(s, req, tex);
   // Nothing the last run read changed: resume from the last checkpoint and replay only the tail.
   const from = invalid < 0 ? Number.POSITIVE_INFINITY : invalid;
   let last = s.ran ? await s.engine.rerun(from) : await s.engine.runFull(args);
   s.ran = true;
   t.passes.push({ ms: last.ms, from: last.resumedFrom });
+  if (last.exitCode === 0) await afterPass?.();
   for (let pass = 1; pass < MAX_TEX_PASSES && last.exitCode === 0; pass++) {
     const at = feedAux(s.engine, last);
     if (at === null) break;
     last = await s.engine.rerun(at); // NOSONAR: each pass reads the aux files of the one before
     t.passes.push({ ms: last.ms, from: last.resumedFrom });
+    if (last.exitCode === 0) await afterPass?.(); // NOSONAR: as above
   }
   return last;
 }
@@ -335,12 +382,24 @@ async function compile(req: CompileRequest): Promise<void> {
   const tex = format && parts ? withFormat(parts[0], parts[1]) : req.latexSource;
   const args = [`${BIN_DIR}/xelatex`, '-no-pdf', '-synctex=-1', ...TEX_FLAGS, `-fmt=${format ?? 'xelatex'}`, 'main.tex'];
   let s = sessionFor(rt, req.session, format);
-  let last = await typeset(s, req, tex, args, t);
+  // Low-memory devices keep to the PDF: the outline instance needs memory of its own.
+  const shipped = new Map<number, Uint8Array>();
+  const collect = req.drawn && !lowMemory ? (page: number, xdv: Uint8Array) => shipped.set(page, xdv) : undefined;
+  s.engine.onPage = collect;
+  const afterPass = collect ? () => postDrawnPages(rt, req, shipped) : undefined;
+  let last = await typeset(s, req, tex, args, t, afterPass);
   // A stale seed (a macro the document no longer defines) must not fail the compile: retry once from scratch, as the server does.
   if (last.exitCode !== 0 && (req.seedAux ?? []).length > 0) {
     if (req.session) sessions.delete(req.session);
     s = sessionFor(rt, req.session, format);
-    last = await typeset(s, { ...req, seedAux: [] }, tex, args, t);
+    s.engine.onPage = collect;
+    last = await typeset(s, { ...req, seedAux: [] }, tex, args, t, afterPass);
+  }
+  s.engine.onPage = undefined;
+  const xdv = last.outputs.get('/work/main.xdv');
+  if (collect && xdv && last.exitCode === 0) {
+    const count = await rendererFor(rt).parse(xdv).then((d) => d.pages.length).catch(() => null);
+    if (count !== null) self.postMessage({ id: req.id, type: 'pages-done', count });
   }
   await finish(rt, req, s, last, args, t, format ? FORMAT_LINE_SHIFT : 0);
 }

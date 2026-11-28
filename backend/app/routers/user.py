@@ -23,6 +23,7 @@ from app.schemas.capabilities import (
     CapabilitiesOut,
     GradingControlsSideUpdate,
     GradingScratchOutUpdate,
+    PreviewDrawnPagesUpdate,
     ReviewMailUpdate,
     StorageModeUpdate,
 )
@@ -51,6 +52,7 @@ def _capabilities_out(teacher: Teacher) -> CapabilitiesOut:
         review_mail=teacher.review_mail,
         grading_controls_side="right" if teacher.grading_controls_side == "right" else "left",
         grading_scratch_out=teacher.grading_scratch_out is not False,
+        preview_drawn_pages=teacher.preview_drawn_pages is not False,
     )
 
 
@@ -119,6 +121,15 @@ async def set_grading_scratch_out(
 ) -> CapabilitiesOut:
     """Switch erasing pen marks and stamps by scribbling over them on or off (issue #330)."""
     teacher.grading_scratch_out = body.grading_scratch_out
+    return await _saved(teacher, db)
+
+
+@router.put("/preview-drawn-pages")
+async def set_preview_drawn_pages(
+    body: PreviewDrawnPagesUpdate, teacher: TeachingTeacher, db: DB
+) -> CapabilitiesOut:
+    """Choose drawn pages or the exact PDF for the exercise editor's live preview (issue #352)."""
+    teacher.preview_drawn_pages = body.preview_drawn_pages
     return await _saved(teacher, db)
 
 

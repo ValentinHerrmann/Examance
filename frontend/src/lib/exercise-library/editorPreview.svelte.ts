@@ -5,6 +5,9 @@ import type { CompileResult } from '#lib/latex/compiler';
 import { pdfBytesToUrl } from '#lib/latex/pdfPreview';
 import { translate } from '#lib/i18n';
 import { PreviewSync } from '#lib/latex/previewSync.svelte';
+import { DrawnPages } from '#lib/latex/drawnPages.svelte';
+import { fromStore } from 'svelte/store';
+import { capabilitiesStore, effectiveLatexStore } from '#lib/stores/capabilities';
 import type { ClickTarget, PageClick } from '#lib/latex/clickToSource';
 import type { PageEditProps } from '#lib/components/latex/PageEditLayer.svelte';
 import type { EditorKey, EditorPos } from '#lib/components/LatexEditor.svelte';
@@ -50,6 +53,20 @@ export class EditorPreview {
   compiled = $state(false);
   /** Click-to-source and the editor's cursor in both panes (issue #347). */
   readonly sync = new PreviewSync();
+  /** The pages the browser engine drew per pane (issue #352), shown while `drawnMode` is on. */
+  readonly drawn = { angabe: new DrawnPages(), loesung: new DrawnPages() };
+  private readonly caps = fromStore(capabilitiesStore);
+  private readonly engine = fromStore(effectiveLatexStore);
+
+  /** Drawn pages instead of EmbedPDF: the account's choice (drawn by default), only while the browser engine compiles. */
+  get drawnMode(): boolean {
+    return (this.caps.current?.previewDrawnPages ?? true) && this.engine.current === 'local';
+  }
+
+  /** The drawn pages of pane `pane` while they are shown (`DualPdfPreview` `drawn`). */
+  drawnFor(pane: string): DrawnPages | undefined {
+    return this.drawnMode && (pane === 'angabe' || pane === 'loesung') ? this.drawn[pane] : undefined;
+  }
   /** The newest source asked for while a compile ran; only it compiles next, so a stale result never shows last. */
   private queued: { input: PreviewInput; done: ((message: string) => void)[] } | null = null;
   private running = false;
@@ -68,6 +85,8 @@ export class EditorPreview {
     this.lastInput = null;
     this.solutionStale = false;
     this.sync.reset();
+    this.drawn.angabe.clear();
+    this.drawn.loesung.clear();
     if (this.pdfUrl) URL.revokeObjectURL(this.pdfUrl);
     if (this.solutionUrl) URL.revokeObjectURL(this.solutionUrl);
     this.pdfUrl = null;
@@ -184,6 +203,20 @@ export class EditorPreview {
     }
   }
 
+  /** Asks the engine to draw pane `variant`'s pages at the scale it shows them; pages of a stale compile are dropped. */
+  private drawRequest(variant: 'angabe' | 'loesung', stale: () => boolean) {
+    const pages = this.drawn[variant];
+    const scale = pages.scale;
+    pages.begin();
+    return {
+      scale,
+      onPage: (p: Parameters<DrawnPages['put']>[0]) => (stale() ? p.bitmap?.close() : pages.put(p, scale)),
+      onDone: (count: number) => {
+        if (!stale()) pages.done(count);
+      },
+    };
+  }
+
   private async compileNow(input: PreviewInput): Promise<string> {
     this.compiled = true;
     this.loading = true;
@@ -195,6 +228,7 @@ export class EditorPreview {
       const res = await compileExercisePreview({
         ...input,
         solution: this.solutionShown,
+        drawn: this.drawnMode && input.useLocal ? (variant) => this.drawRequest(variant, stale) : undefined,
         onAngabe: (angabe) => {
           if (stale()) return;
           this.setPdf(angabe, input.latexBody);

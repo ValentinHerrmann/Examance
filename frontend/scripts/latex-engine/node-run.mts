@@ -5,32 +5,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { TexEngine, type RunResult } from '../../src/lib/latex/engine/engine';
-import { LazyTree, type TreeSource } from '../../src/lib/latex/engine/tree';
+import { LazyTree } from '../../src/lib/latex/engine/tree';
+import { assetInputs, localSource } from './localTree.mts';
 
 const [engineDir, docPath, editsPath] = process.argv.slice(2);
 if (!engineDir || !docPath) throw new Error('usage: node-run.mts <engine dir> <doc.tex> [edits.json]');
-const root = process.env.TEXLIVE_ROOT ?? '/opt/texlive';
-const assetsDir = path.resolve('../backend/latex-assets');
-const examanceCnf = path.resolve('../backend/latex-texlive/texmf.cnf');
-const SKIPPED = ['texmf-dist/doc/', 'texmf-dist/source/', 'texmf-dist/scripts/'];
-
-function localSource(): TreeSource {
-  const files: Record<string, number> = {};
-  if (fs.existsSync(path.join(root, 'texmf.cnf'))) files['texmf.cnf'] = fs.statSync(path.join(root, 'texmf.cnf')).size;
-  for (const top of ['texmf-dist', 'texmf-var']) {
-    for (const rel of fs.readdirSync(path.join(root, top), { recursive: true }) as string[]) {
-      const name = `${top}/${rel}`;
-      const st = fs.statSync(path.join(root, name));
-      if (st.isFile() && !SKIPPED.some((s) => name.startsWith(s))) files[name] = st.size;
-    }
-  }
-  files['examance/texmf.cnf'] = fs.statSync(examanceCnf).size;
-  return {
-    manifest: async () => ({ version: 'local', files }),
-    file: async (rel) => new Uint8Array(fs.readFileSync(rel === 'examance/texmf.cnf' ? examanceCnf : path.join(root, rel))),
-  };
-}
-
 const tree = await LazyTree.open(localSource(), false);
 const xetex = await WebAssembly.compile(fs.readFileSync(path.join(engineDir, 'xetex.wasm')));
 const xdvipdfmx = await WebAssembly.compile(fs.readFileSync(path.join(engineDir, 'xdvipdfmx.wasm')));
@@ -43,13 +22,7 @@ const make = (incremental = true) =>
   new TexEngine({ module: xetex, tree, icuData, format, incremental, checkpointEveryMs: Number(process.env.CHECKPOINT_MS ?? 150), memoryBudget: Number(process.env.MEMORY_BUDGET ?? 900 * 2 ** 20) });
 
 function withAssets(e: TexEngine): TexEngine {
-  for (const rel of fs.readdirSync(assetsDir, { recursive: true }) as string[]) {
-    const abs = path.join(assetsDir, rel);
-    if (!fs.statSync(abs).isFile()) continue;
-    const bytes = new Uint8Array(fs.readFileSync(abs));
-    e.inputs.set(rel, bytes);
-    if (rel.startsWith('sty/') && /\.(sty|tex)$/.test(rel)) e.inputs.set(rel.slice(4), bytes);
-  }
+  for (const [rel, bytes] of assetInputs()) e.inputs.set(rel, bytes);
   return e;
 }
 

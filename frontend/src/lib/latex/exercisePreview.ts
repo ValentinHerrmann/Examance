@@ -1,5 +1,5 @@
 import { compileWithCache } from "#lib/latex/compileCache";
-import type { CompileResult } from "#lib/latex/compiler";
+import type { CompileResult, DrawnPagesRequest } from "#lib/latex/compiler";
 import { formatExerciseLatex } from "#lib/latex/scoreParser";
 import { exerciseResourceRepository } from "#lib/repositories/exerciseResourceRepository";
 import { documentBody, documentLayers, withPackages, type LatexPackageEntry } from "#lib/latex/packages";
@@ -73,6 +73,8 @@ export interface ExercisePreviewInput {
   beforeCompile?: () => Promise<void>;
   /** False compiles only the Angabe (the editor's live preview while the solution pane is closed, issue #347). */
   solution?: boolean;
+  /** Pages to draw before each PDF (the editor's drawn pages, issue #352). */
+  drawn?: (variant: 'angabe' | 'loesung') => DrawnPagesRequest | undefined;
 }
 
 export interface ExercisePreviewResult {
@@ -115,14 +117,14 @@ export async function compileExercisePreview(input: ExercisePreviewInput): Promi
   await input.beforeCompile?.();
   const angabe = await compileWithCache(
     { kind: "exercise", id: input.cacheId, variant: "angabe" },
-    angabeTex, input.useLocal, input.onStatus, opts
+    angabeTex, input.useLocal, input.onStatus, { ...opts, drawn: input.drawn?.("angabe") }
   );
   input.onAngabe?.(angabe);
   if (input.solution === false) return { angabe, loesung: null, missingGraphics: angabe.missingGraphics ?? [] };
   await input.beforeCompile?.();
   const loesung = await compileWithCache(
     { kind: "exercise", id: input.cacheId, variant: "loesung" },
-    loesungTex, input.useLocal, undefined, opts
+    loesungTex, input.useLocal, undefined, { ...opts, drawn: input.drawn?.("loesung") }
   );
   return {
     angabe,

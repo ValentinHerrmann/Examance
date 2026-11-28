@@ -1,7 +1,7 @@
 /** Inline editing in the exercise editor's preview (issue #347), with the real browser engine: the code editor's cursor shows as a caret in the page, a click on the page puts the cursor on that character (or at the line's end beside it), a drag selects, Space+drag pans, and typing on the page goes into the LaTeX there. The fake API serves the TeX Live tree from a local install (`tests/helpers/fakeTexTree.ts`); without one the spec skips. */
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './helpers/guards';
-import { exerciseEditor, readCodeMirror, setCodeMirror, signInFirstTime, t } from './helpers/flows';
+import { exerciseEditor, readCodeMirror, setCodeMirror, showExactPdf, signInFirstTime, t } from './helpers/flows';
 import { gotoExerciseLibrary } from './helpers/nav';
 import { hasLocalTexTree } from '../tests/helpers/fakeTexTree';
 
@@ -44,6 +44,7 @@ test.describe('inline editing', () => {
     await setCodeMirror(page, editor, `${BODY}\n\n${FILLER}`, 0);
     await editor.getByRole('button', { name: await t(page, 'exercises.editor.previewButton') }).click();
     await expect(editor.getByRole('img', { name: await t(page, 'common.pdfPage') }).first()).toBeVisible({ timeout: 240_000 });
+    await showExactPdf(page, editor);
 
     // The code editor's cursor between M and a of the second "Maus" shows as a caret in the page.
     await editor.locator('.cm-content').first().click();

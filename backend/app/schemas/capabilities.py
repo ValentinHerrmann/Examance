@@ -26,6 +26,8 @@ class CapabilitiesOut(BaseModel):
     grading_controls_side: ControlsSide = "left"
     # Scribbling over pen marks and stamps erases them (issue #330); a stored null reads as on.
     grading_scratch_out: bool = True
+    # The exercise editor's preview draws pages from the engine (issue #352); a stored null reads as on.
+    preview_drawn_pages: bool = True
 
 
 class StorageModeUpdate(BaseModel):
@@ -53,3 +55,9 @@ class GradingScratchOutUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     grading_scratch_out: bool
+
+
+class PreviewDrawnPagesUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    preview_drawn_pages: bool

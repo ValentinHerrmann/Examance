@@ -2,7 +2,7 @@
 
 import { compareCodeUnits } from '#lib/utils/compare';
 import { frontendVersion } from '#lib/stores/versionStore';
-import { compileLatex, type AuxFile, type CompileResult } from './compiler';
+import { compileLatex, type AuxFile, type CompileResult, type DrawnPagesRequest } from './compiler';
 import { dropStoredCompiles, loadStoredCompile, saveStoredCompile, type StoredCompile } from './compileStore';
 import { mergeResources, type LatexResourceFile } from './resources';
 import { clearLogoCache, type CompileLogo } from './logo';
@@ -217,7 +217,8 @@ export function getCompileCacheStats(): { entryCount: number; totalBytes: number
   };
 }
 
-type CompileOpts = { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo; synctex?: boolean };
+/** `drawn` only rides along to the engine (drawn pages, issue #352): it is not part of the cached result or its hash. */
+type CompileOpts = { resources?: LatexResourceFile[]; resourceExerciseIds?: string[]; logo?: CompileLogo; synctex?: boolean; drawn?: DrawnPagesRequest };
 
 /** Invalidated slot-key prefixes by sequence number: a compile that was running when its slot was invalidated (an exam deleted meanwhile) must not write its PDF back. */
 let invalidationSeq = 0;

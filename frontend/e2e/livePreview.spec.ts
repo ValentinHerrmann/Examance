@@ -1,7 +1,7 @@
 /** Live preview with the real browser engine (issue #350): typing in the exercise editor brings new PDFs, and no frame in between shows a blank pane. The fake API serves the TeX Live tree from a local install (`tests/helpers/fakeTexTree.ts`); without one the spec skips. */
 import type { Page } from '@playwright/test';
 import { test, expect } from './helpers/guards';
-import { exerciseEditor, setCodeMirror, signInFirstTime, t } from './helpers/flows';
+import { exerciseEditor, setCodeMirror, showExactPdf, signInFirstTime, t } from './helpers/flows';
 import { gotoExerciseLibrary } from './helpers/nav';
 import { hasLocalTexTree } from '../tests/helpers/fakeTexTree';
 
@@ -63,6 +63,7 @@ test.describe('live preview', () => {
     await setCodeMirror(page, editor, 'Die Katze sieht die Maus.', 0);
     await editor.getByRole('button', { name: await t(page, 'exercises.editor.previewButton') }).click();
     await expect(editor.getByRole('img', { name: await t(page, 'common.pdfPage') }).first()).toBeVisible({ timeout: 240_000 });
+    await showExactPdf(page, editor);
     await expect.poll(() => page.evaluate(() => document.querySelectorAll('.embed-pdf-viewer embedpdf-container').length)).toBeGreaterThan(0);
 
     await watchFrames(page);

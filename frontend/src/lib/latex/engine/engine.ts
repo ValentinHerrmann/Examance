@@ -15,6 +15,8 @@ const S_IFDIR = 0o040000, S_IFREG = 0o100000;
 const PAGE = 4096;
 const EMPTY = new Uint8Array(0);
 const CWD = '/work';
+/** provenance.c's channel for shipped pages: one write per page, never stored. */
+const PAGES = `${CWD}/main.pages`;
 /** argv[0]: kpathsea derives SELFAUTOPARENT (= the tree root) from it, as for the server's own binary. */
 export const BIN_DIR = `${TREE_ROOT}/bin/x86_64-linux`;
 /** Our runner's texmf.cnf, read before the distribution's (TEXMFCNF ends in ":"), as on the server. */
@@ -107,6 +109,8 @@ export interface EngineOptions {
   memoryBudget?: number;
   /** False for documents compiled once (no edit expected): no checkpoints at all. */
   incremental?: boolean;
+  /** Called at each page TeX ships out with the XDV up to that page's eop (drawn pages, issue #352). */
+  onPage?: (page: number, xdv: Uint8Array) => void;
 }
 
 const ASYNC_UNWINDING = 1;
@@ -144,13 +148,16 @@ export class TexEngine {
   private argv: string[] = [];
   private argvPtr = 0;
   private finished = true;
-  private readonly opts: Required<EngineOptions>;
+  private readonly opts: Required<Omit<EngineOptions, 'onPage'>>;
+  /** Set per compile: the worker draws pages only when the caller asked for them. */
+  onPage: EngineOptions['onPage'];
   private readonly icuPath = '/icu/icudt78l.dat';
   private readonly unknownImports = new Set<string>();
 
   constructor(opts: EngineOptions) {
     this.opts = { checkpointEveryMs: 150, maxCheckpoints: 12, memoryBudget: DEFAULT_MEMORY_BUDGET, incremental: true, ...opts };
     this.tree = opts.tree;
+    this.onPage = opts.onPage;
     if (!this.opts.incremental) this.mode = 'full';
   }
 
@@ -402,6 +409,35 @@ export class TexEngine {
     return { exitCode, ms: performance.now() - t0, resumedFrom, outputs, stdout: this.stdout.join('') };
   }
 
+  /** A glyph's outline from the engine's FreeType (drawn pages, issue #352): [units per em, advance, commands…] as provenance.c writes them, or null. Only on an instance that never typesets: the call changes memory that checkpoints restore. */
+  async glyphOutline(path: string, index: number, glyph: number, name = ''): Promise<Int32Array | null> {
+    if (!this.instance) this.instantiate();
+    // Fetched first: a tree file read inside the call cannot unwind to wait for it.
+    if (this.tree.size(path) >= 0 && !this.tree.cached(path)) await this.tree.load(path);
+    const enc = new TextEncoder();
+    const strings = [enc.encode(`${path}\0`), enc.encode(`${name}\0`)].map((b) => {
+      const ptr = this.exports.malloc(b.length);
+      this.refreshViews();
+      this.mem.set(b, ptr);
+      return ptr;
+    });
+    let cap = 2048;
+    try {
+      for (;;) {
+        const out = this.exports.malloc(cap * 4);
+        const n: number = this.exports.prov_glyph_outline(strings[0], index, glyph, strings[1], out, cap);
+        this.refreshViews();
+        const fits = n <= cap;
+        const result = n < 0 ? null : new Int32Array(this.mem.slice(out, out + Math.min(n, cap) * 4).buffer);
+        this.exports.free(out);
+        if (fits || !result) return result;
+        cap = n;
+      }
+    } finally {
+      for (const ptr of strings) this.exports.free(ptr);
+    }
+  }
+
   // --- instance -----------------------------------------------------------
 
   private instantiate(): void {
@@ -605,12 +641,25 @@ export class TexEngine {
       const len = this.dv.getUint32(iovs + i * 8 + 4, true);
       const bytes = this.mem.subarray(buf, buf + len);
       if (fd === 1 || fd === 2) this.stdout.push(new TextDecoder().decode(bytes));
+      else if (f?.path === PAGES) this.shipped(bytes);
       else if (f?.out) writeOut(f, bytes);
       else return E.BADF;
       total += len;
     }
     this.dv.setUint32(pnwritten, total, true);
     return 0;
+  }
+
+  /** A page record of provenance.c (page count, length, the bytes still in TeX's buffer): the XDV written so far plus them ends at that page's eop. */
+  private shipped(rec: Uint8Array): void {
+    if (!this.onPage || rec.length < 8) return;
+    const head = new DataView(rec.buffer, rec.byteOffset, 8);
+    const pending = rec.subarray(8, 8 + head.getInt32(4, true));
+    const xdv = this.outputs.get(`${CWD}/main.xdv`);
+    const all = new Uint8Array((xdv?.len ?? 0) + pending.length);
+    if (xdv) all.set(xdv.data.subarray(0, xdv.len));
+    all.set(pending, xdv?.len ?? 0);
+    this.onPage(head.getInt32(0, true), all);
   }
 
   imp_fd_seek(fd: number, offset: bigint, whence: number, pnew: number): number {

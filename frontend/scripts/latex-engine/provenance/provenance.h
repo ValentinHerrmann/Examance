@@ -25,6 +25,9 @@ void provmap(int inLen, int outLen);
 int provmapget(int i);
 void provspecial(int from, int to);
 void provpage(void);
+void proveop(void);
+void provchar(int p, int h, int v, int page, int size, int code, int width);
+int prov_glyph_outline(const char *path, int index, int glyph, const char *name, int32_t *out, int cap);
 void provClusters(void *pNode, void *engine, int count);
 void provGetClusters(void *engine, int32_t *out, int count);
 #ifdef __cplusplus

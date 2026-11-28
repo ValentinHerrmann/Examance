@@ -6,6 +6,8 @@
   import { faChevronLeft, faChevronRight, faDownload, faFileLines, faFilePdf } from "@fortawesome/free-solid-svg-icons";
   import { Button, Icon, Tabs } from "#lib/components/ui";
   import type { PageEditProps } from "#lib/components/latex/PageEditLayer.svelte";
+  import DrawnPagesViewer from "#lib/components/latex/DrawnPagesViewer.svelte";
+  import type { DrawnPages } from "#lib/latex/drawnPages.svelte";
 
   // Titles/placeholder stay undefined by default so the catalog text follows the language switch.
   interface Props {
@@ -35,6 +37,10 @@
     edit?: (paneId: string) => PageEditProps | undefined;
     /** Pane `paneId` now shows the PDF at `url` (`PdfEmbedViewer` `onShown`). */
     onShown?: (paneId: string, url: string) => void;
+    /** Pages the browser engine drew for pane `paneId` (issue #352): shown instead of EmbedPDF while defined. */
+    drawn?: (paneId: string) => DrawnPages | undefined;
+    /** Controls in the header of the first open pane (and beside the phone tabs): the exercise editor's preview mode. */
+    controls?: Snippet;
   }
 
   let {
@@ -55,6 +61,8 @@
     hideEmpty = false,
     edit = undefined,
     onShown = undefined,
+    drawn = undefined,
+    controls = undefined,
   }: Props = $props();
 
   let angabeTitle = $derived(titleAngabe ?? $t("editor.pdfPreview.titleAngabe"));
@@ -123,6 +131,12 @@
 
   let allCollapsed = $derived(panes.every((p) => !p.shown));
 
+  /** The pane's drawn pages, once there is something to show (a PDF or a drawn page). */
+  function drawnOf(pane: { id: string; url: string | null }): DrawnPages | undefined {
+    const pages = drawn?.(pane.id);
+    return pages && (pane.url || pages.count) ? pages : undefined;
+  }
+
   // A new or changed extra PDF opens its pane (and selects it on phones), so what was just made is in view.
   $effect.pre(() => {
     const urls = extraPanes.map((x) => [x.id, x.url] as const);
@@ -161,6 +175,7 @@
                 <span class="truncate text-xs font-medium text-muted">{pane.title}</span>
               </button>
               <div class="flex shrink-0 items-center gap-0.5">
+                {#if pane.id === panes.find((p) => p.shown)?.id}{@render controls?.()}{/if}
                 {@render report?.()}
                 {#if pane.url && downloadable}
                   <Button
@@ -188,7 +203,9 @@
               </div>
             </div>
             <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: pane.title })}>
-              {#if pane.url}
+              {#if drawnOf(pane)}
+                <DrawnPagesViewer src={pane.url} pages={drawnOf(pane)!} edit={edit?.(pane.id)} onShown={onShown && ((url) => onShown(pane.id, url))} />
+              {:else if pane.url}
                 <PdfEmbedViewer src={pane.url} edit={edit?.(pane.id)} onShown={onShown && ((url) => onShown(pane.id, url))} />
               {:else}
                 <div class="flex h-full items-center justify-center p-4 text-center text-sm text-content">
@@ -225,11 +242,14 @@
           value={mobilePane}
           onChange={(id) => selectMobilePane(id)}
         />
+        {#if controls}<div class="shrink-0 px-1">{@render controls()}</div>{/if}
         {#if report}<div class="shrink-0 px-1">{@render report()}</div>{/if}
       </div>
 
       <div class="min-h-0 flex-1" role="group" aria-label={$t("editor.pdfPreview.frameTitle", { title: activePane.title })}>
-        {#if activePane.url}
+        {#if drawnOf(activePane)}
+          <DrawnPagesViewer src={activePane.url} pages={drawnOf(activePane)!} edit={edit?.(activePane.id)} onShown={onShown && ((url) => onShown(activePane.id, url))} />
+        {:else if activePane.url}
           <PdfEmbedViewer src={activePane.url} edit={edit?.(activePane.id)} onShown={onShown && ((url) => onShown(activePane.id, url))} />
         {:else}
           <div class="flex h-full items-center justify-center p-4 text-center text-sm text-content">

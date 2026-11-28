@@ -27,6 +27,8 @@ export interface Capabilities {
   gradingControlsSide?: ControlsSide;
   /** Scribbling over pen marks and stamps erases them (issue #330); on unless false. */
   gradingScratchOut?: boolean;
+  /** The exercise editor's preview draws pages from the engine instead of showing the exact PDF (issue #352); on unless false. */
+  previewDrawnPages?: boolean;
 }
 
 const CACHE_KEY = 'bg_capabilities';
@@ -75,6 +77,7 @@ interface CapabilitiesResponse {
   review_mail?: boolean | null;
   grading_controls_side?: string;
   grading_scratch_out?: boolean;
+  preview_drawn_pages?: boolean;
 }
 
 function fromResponse(res: CapabilitiesResponse): Capabilities {
@@ -90,6 +93,7 @@ function fromResponse(res: CapabilitiesResponse): Capabilities {
     reviewMail: typeof res.review_mail === 'boolean' ? res.review_mail : null,
     gradingControlsSide: res.grading_controls_side === 'right' ? 'right' : 'left',
     gradingScratchOut: res.grading_scratch_out !== false,
+    previewDrawnPages: res.preview_drawn_pages !== false,
   };
 }
 
@@ -143,6 +147,9 @@ export const saveGradingControlsSide = (side: ControlsSide) =>
 
 /** Erasing by scribbling over marks (issue #330). */
 export const saveGradingScratchOut = (on: boolean) => saveAccountPreference('/user/grading-scratch-out', { grading_scratch_out: on });
+
+/** Drawn pages or the exact PDF in the exercise editor's preview (issue #352). */
+export const savePreviewDrawnPages = (value: boolean) => saveAccountPreference('/user/preview-drawn-pages', { preview_drawn_pages: value });
 
 /** Forgets the answer, e.g. at sign-out: the next account must never start from this one's switches. */
 export function clearCapabilities(): void {
